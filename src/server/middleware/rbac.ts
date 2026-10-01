@@ -208,6 +208,24 @@ export async function checkEnrollmentMatch(
 }
 
 /**
+ * Determines if an error is a fetch or network connectivity error
+ * to allow logging environmental and network lookup exceptions as info/debug
+ * rather than system-wide warnings/errors.
+ */
+function isNetworkOrFetchError(err: any): boolean {
+  if (!err) return false;
+  const msg = String(err.message || err).toLowerCase();
+  return (
+    msg.includes("fetch failed") ||
+    msg.includes("network") ||
+    msg.includes("connrefused") ||
+    msg.includes("econnreset") ||
+    msg.includes("timeout") ||
+    msg.includes("typeerror: failed to fetch")
+  );
+}
+
+/**
  * Authoritative Authentication Pipeline:
  * 
  * Authentication
@@ -318,12 +336,20 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
           .maybeSingle();
 
         if (directErr) {
-          logger.warn(`Non-blocking warning looking up user by firebase_uid: ${directErr.message || directErr}`);
+          if (isNetworkOrFetchError(directErr)) {
+            logger.debug(`Supabase direct check offline or unreachable (fetch failed): ${directErr.message || directErr}`);
+          } else {
+            logger.warn(`Non-blocking warning looking up user by firebase_uid: ${directErr.message || directErr}`);
+          }
         } else if (directUser) {
           dbUser = directUser;
         }
       } catch (err: any) {
-        logger.warn("Non-blocking warning querying users.firebase_uid:", err?.message || err);
+        if (isNetworkOrFetchError(err)) {
+          logger.debug(`Supabase direct check query failed due to offline/unreachable network: ${err?.message || err}`);
+        } else {
+          logger.warn("Non-blocking warning querying users.firebase_uid:", err?.message || err);
+        }
       }
     }
 
@@ -338,7 +364,11 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
           .maybeSingle();
 
         if (legacyErr) {
-          logger.warn(`Non-blocking warning looking up legacy user: ${legacyErr.message || legacyErr}`);
+          if (isNetworkOrFetchError(legacyErr)) {
+            logger.debug(`Supabase legacy check offline or unreachable (fetch failed): ${legacyErr.message || legacyErr}`);
+          } else {
+            logger.warn(`Non-blocking warning looking up legacy user: ${legacyErr.message || legacyErr}`);
+          }
         } else if (legacyUser) {
           dbUser = legacyUser;
 
@@ -365,11 +395,19 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
           }
         }
       } catch (err: any) {
-        logger.warn("Non-blocking warning querying legacy user:", err?.message || err);
+        if (isNetworkOrFetchError(err)) {
+          logger.debug(`Supabase legacy user query failed due to offline/unreachable network: ${err?.message || err}`);
+        } else {
+          logger.warn("Non-blocking warning querying legacy user:", err?.message || err);
+        }
       }
     }
   } catch (dbErr: any) {
-    logger.warn("Database lookup non-fatal warning during user lookup:", dbErr?.message || dbErr);
+    if (isNetworkOrFetchError(dbErr)) {
+      logger.debug(`Supabase database lookup offline or unreachable during user lookup: ${dbErr?.message || dbErr}`);
+    } else {
+      logger.warn("Database lookup non-fatal warning during user lookup:", dbErr?.message || dbErr);
+    }
   }
 
   // 3. Email Synchronization as a Profile Attribute
@@ -645,13 +683,21 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
         .maybeSingle();
 
       if (stdError) {
-        logger.warn(`Non-blocking warning looking up student record: ${stdError.message || stdError}`);
+        if (isNetworkOrFetchError(stdError)) {
+          logger.debug(`Supabase student lookup offline or unreachable (fetch failed): ${stdError.message || stdError}`);
+        } else {
+          logger.warn(`Non-blocking warning looking up student record: ${stdError.message || stdError}`);
+        }
       } else if (studentRecord) {
         if (studentRecord.id) studentRecordId = studentRecord.id;
         if (studentRecord.student_number) studentNumber = studentRecord.student_number;
       }
     } catch (studentErr: any) {
-      logger.warn("Non-blocking error querying students table:", studentErr?.message || studentErr);
+      if (isNetworkOrFetchError(studentErr)) {
+        logger.debug(`Supabase student query failed due to offline/unreachable network: ${studentErr?.message || studentErr}`);
+      } else {
+        logger.warn("Non-blocking error querying students table:", studentErr?.message || studentErr);
+      }
     }
   }
 
@@ -686,7 +732,11 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
             .maybeSingle();
 
           if (profEmailErr) {
-            logger.warn(`Non-blocking warning looking up profiles table: ${profEmailErr.message || profEmailErr}`);
+            if (isNetworkOrFetchError(profEmailErr)) {
+              logger.debug(`Supabase profile lookup offline or unreachable (fetch failed): ${profEmailErr.message || profEmailErr}`);
+            } else {
+              logger.warn(`Non-blocking warning looking up profiles table: ${profEmailErr.message || profEmailErr}`);
+            }
           } else if (profByEmail) {
             prof = profByEmail;
           }
@@ -716,7 +766,11 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
         }
       }
     } catch (profErr: any) {
-      logger.warn("Non-blocking error looking up profile:", profErr?.message || profErr);
+      if (isNetworkOrFetchError(profErr)) {
+        logger.debug(`Supabase profile query failed due to offline/unreachable network: ${profErr?.message || profErr}`);
+      } else {
+        logger.warn("Non-blocking error looking up profile:", profErr?.message || profErr);
+      }
     }
   }
 

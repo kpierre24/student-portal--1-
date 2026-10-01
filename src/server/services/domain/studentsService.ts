@@ -113,7 +113,14 @@ export const studentsService = {
       let { data: dbStudents, error: studentErr } = await studentQuery;
 
       if (studentErr) {
-        logger.warn('Embedded relation query warning for students, attempting direct table join fallback:', studentErr.message || studentErr);
+        const errorMsg = String(studentErr.message || studentErr).toLowerCase();
+        const isNetworkError = errorMsg.includes("fetch failed") || errorMsg.includes("network") || errorMsg.includes("failed to fetch");
+        
+        if (isNetworkError) {
+          logger.debug('Embedded relation query fetch failure for students, attempting direct table join fallback: ' + (studentErr.message || studentErr));
+        } else {
+          logger.warn('Embedded relation query warning for students, attempting direct table join fallback:', studentErr.message || studentErr);
+        }
         let fallbackQuery = supabase
           .from('students')
           .select('id, user_id, student_number, enrollment_status, cohort_level, admission_date')

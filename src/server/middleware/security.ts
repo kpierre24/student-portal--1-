@@ -1,37 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import RedisStore from "rate-limit-redis";
-import { createClient } from "redis";
 import { logger } from "../../lib/logger";
-
-// Initialize Redis client if REDIS_URL is present
-let redisClient: ReturnType<typeof createClient> | undefined;
-let isRedisConnected = false;
-
-if (process.env.REDIS_URL) {
-  redisClient = createClient({
-    url: process.env.REDIS_URL,
-    // Add reconnect strategy for resilience
-    socket: {
-      reconnectStrategy: (retries) => Math.min(retries * 50, 2000),
-    },
-  });
-
-  redisClient.on("error", (err) => logger.error("Redis Client Error", err));
-  redisClient.on("ready", () => {
-    isRedisConnected = true;
-    logger.info("Redis connected and ready for rate limiting.");
-  });
-
-  // Start connection
-  redisClient.connect().catch((err) => {
-    logger.error("Failed to connect to Redis:", err);
-  });
-}
 
 /**
  * Rate Limiting Middleware
- * Supports isolated bucket tracking per route category using Redis (if configured) or Memory store.
+ * Supports isolated bucket tracking per route category using default Memory store.
  * Identifies users by authenticated user ID (if available) or trusted client IP.
  */
 export function rateLimiter(maxRequests = 100, windowMs = 15 * 60 * 1000, bucketName = "global") {
@@ -65,18 +38,6 @@ export function rateLimiter(maxRequests = 100, windowMs = 15 * 60 * 1000, bucket
         retryAfterSeconds: Math.ceil(windowMs / 1000),
       });
     },
-    // Use Redis store if connected, otherwise fallback to default memory store
-    store: redisClient 
-      ? new RedisStore({
-          sendCommand: (...args: string[]) => {
-            if (isRedisConnected && redisClient) {
-              return redisClient.sendCommand(args);
-            }
-            throw new Error("Redis not connected");
-          },
-          prefix: `ratelimit:${bucketName}:`
-        })
-      : undefined, 
   });
 }
 
