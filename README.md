@@ -18,7 +18,7 @@
 - [Development Setup](#development-setup)
 - [How to Deploy from Zero](#how-to-deploy-from-zero)
 - [Production Deployment](#production-deployment)
-  - [Cloud Run / Docker Container](#cloud-run--docker-container)
+  - [Cloud Run](#cloud-run)
   - [Vercel Deployment](#vercel-deployment)
 - [Environment Variables](#environment-variables)
 - [Progressive Web App (PWA)](#progressive-web-app-pwa)
@@ -213,23 +213,9 @@ Your server will spin up on `PORT=3000` listening on host `0.0.0.0`.
 
 ## Production Deployment
 
-### Cloud Run / Docker Container
+### Cloud Run
 
-The application natively supports Google Cloud Run and Docker container runtimes. The backend `server.ts` automatically binds to host `0.0.0.0` and listens on `PORT` (or defaults to `3000` behind reverse proxy layers).
-
-#### Docker CLI Deployment:
-```bash
-# Build Docker image
-npm run docker:build
-
-# Run Docker container
-npm run docker:run
-```
-
-#### Docker Compose:
-```bash
-npm run docker:compose
-```
+The application natively supports Google Cloud Run and Node.js server runtimes. The backend `server.ts` automatically binds to host `0.0.0.0` and listens on `PORT` (or defaults to `3000` behind reverse proxy layers).
 
 #### Google Cloud Run:
 ```bash
