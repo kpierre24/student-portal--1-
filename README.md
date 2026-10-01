@@ -77,12 +77,13 @@ The portal utilizes a hybrid full-stack client-server architecture powered by Re
                   │   - Server-Side Gemini AI Evaluation Proxy│
                   │   - Cloud Run Ingress & Health Handlers   │
                   │   - Session Security & Throttling Guards   │
-                  └──────────┬──────────────────────┬─────────┘
-                             │                      │
-       ┌─────────────────────▼───────┐    ┌─────────▼──────────────────┐
-       │   Supabase Cloud PostgreSQL  │    │ Firebase Auth & Firestore  │
-       │ (Primary Relational Storage)│    │   (OAuth & Real-Time Sync) │
-       └─────────────────────────────┘    └────────────────────────────┘
+                  └──────────┬─────────────────────────────────┘
+                             │
+       ┌─────────────────────▼───────┐
+       │   Supabase Cloud PostgreSQL │
+       │ (Primary Relational Storage │
+       │   & Authoritative Auth)     │
+       └─────────────────────────────┘
 ```
 
 ---
@@ -93,7 +94,7 @@ The portal utilizes a hybrid full-stack client-server architecture powered by Re
 - **Styling & UI**: Tailwind CSS v4 (`tailwindcss: ^4.1.14`), Lucide React Icons (`lucide-react: ^0.546.0`), Framer Motion (`motion: ^12.23.24`)
 - **Data Visualization**: Recharts (`recharts: ^3.10.1`)
 - **Backend / Middleware**: Express 4 (`express: ^4.21.2`), `tsx` (Dev Execution), `esbuild` (Production ESM/CJS compilation)
-- **Database & Storage**: Supabase (`@supabase/supabase-js: ^2.49.1`), Firebase (`firebase: ^12.16.0`), Browser `localStorage` (transient buffer)
+- **Database & Storage**: Supabase (`@supabase/supabase-js: ^2.49.1`), Browser `localStorage` (transient buffer)
 - **AI Processing**: Google Gemini API (`@google/genai: ^2.4.0` TypeScript SDK)
 - **Mobile Runtime**: Capacitor 8 (`@capacitor/core: ^8.5.2`, `@capacitor/android: ^8.5.2`)
 - **PWA Runtime**: Vite PWA Plugin (`vite-plugin-pwa: ^1.3.0`), Service Worker static cache manifest
@@ -106,7 +107,7 @@ The portal utilizes a hybrid full-stack client-server architecture powered by Re
 The portal supports multi-modal authentication flows:
 
 1. **Client-Side Hash Pre-Processing & Backend Auth**: Passwords undergo client-side SHA-256 pre-hashing with domain-specific salting prior to transit over HTTPS, preventing raw plaintext credentials from reaching logs or intermediaries.
-2. **Supabase / Firebase Managed Auth**: Managed authentication engines handle production password storage using salted **bcrypt** / **Argon2id** password key derivation functions (KDF) at the database tier.
+2. **Supabase Managed Auth**: Managed authentication engine handles production password storage using salted **bcrypt** / **Argon2id** password key derivation functions (KDF) at the database tier.
 3. **WebAuthn Biometric Authentication**: Fingerprint / Face ID unlock linked directly to authenticated sessions via the browser's native `navigator.credentials` API.
 4. **Account Lockout & Throttling**: Client-side & server-side rate-limiting (`express-rate-limit`) triggers an automated 2-minute lockout after 5 consecutive failed login attempts on an identifier.
 
@@ -117,7 +118,7 @@ The portal supports multi-modal authentication flows:
 > [!IMPORTANT]
 > **Password Cryptography Architecture**:
 > - Client-side hashing (`hashPassword` in `securityHelper.ts`) uses Web Crypto `crypto.subtle.digest('SHA-256')` with salt (`hteim_ministry_salt_2026`) as a client-side pre-processing step to sanitize credentials prior to wire transport.
-> - Server-side / Database persistence relies on Supabase Auth / PostgreSQL `pgcrypto` or Firebase Auth, which execute computationally expensive, GPU-resistant Key Derivation Functions (**Argon2id** / **bcrypt** / **PBKDF2**) with appropriate cost factors.
+> - Server-side / Database persistence relies on Supabase Auth / PostgreSQL `pgcrypto`, which execute computationally expensive, GPU-resistant Key Derivation Functions (**Argon2id** / **bcrypt** / **PBKDF2**) with appropriate cost factors.
 > - Developers extending authentication logic must **never** store bare SHA-256 hashes as long-term password records in a database without KDF key stretching (e.g. Argon2id or bcrypt).
 
 ### Security Measures:
@@ -129,10 +130,10 @@ The portal supports multi-modal authentication flows:
 
 ## Database & Storage
 
-The platform employs a dual-tier persistence model:
+The platform employs a unified persistence model:
 
 1. **Supabase Cloud PostgreSQL**: Primary relational database handling student records, course enrollments, grade sheets, and tuition transaction ledgers.
-2. **Firebase Firestore**: Real-time document store for active announcement broadcasts, messaging, and live notifications.
+2. **Supabase Storage**: High-speed CDN object storage for academic library resources, homework submissions, and profile assets.
 3. **Browser `localStorage` Buffer**: Client-side storage used for non-sensitive local user preferences and transient PWA offline draft buffer, which auto-flushes to cloud endpoints upon internet reconnection.
 
 ---
@@ -248,10 +249,6 @@ The application references the following environment variables (see `.env.exampl
 | `SUPABASE_SERVICE_ROLE_KEY` | Optional | Server | Privileged Supabase admin key for server-side DB operations |
 | `VITE_SUPABASE_URL` | Yes | Client/Server | Supabase PostgreSQL endpoint URL |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Client/Server | Supabase public anonymous client key |
-| `VITE_FIREBASE_PROJECT_ID` | Yes | Client/Server | Firebase project identifier |
-| `VITE_FIREBASE_API_KEY` | Yes | Client/Server | Firebase web application API key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Yes | Client/Server | Firebase authentication domain |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Yes | Client/Server | Firebase cloud storage bucket |
 
 ---
 

@@ -17,6 +17,13 @@ gradesRouter.use(requireAuth);
 gradesRouter.get(
   "/",
   requirePermission(["grades:read", "assignments:read", "all:access"]),
+  requireResourceOwnership({
+    getTarget: (req) => ({
+      targetStudentRecordId: (req.query.studentId as string) || (req.query.targetStudentId as string) || undefined,
+      targetStudentName: (req.query.studentName as string) || undefined,
+    }),
+    allowedRoles: ["super_admin", "admin", "registrar", "teacher", "lecturer", "staff"],
+  }),
   async (req: Request, res: Response) => {
     try {
       const user = req.user!;
@@ -89,6 +96,12 @@ gradesRouter.post(
 gradesRouter.patch(
   "/:id",
   requirePermission(["grades:write", "assignments:grade", "all:access"]),
+  requireResourceOwnership({
+    getTarget: (req) => ({
+      courseCode: req.body.courseCode,
+    }),
+    allowedRoles: ["super_admin", "admin", "registrar"],
+  }),
   async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.id;

@@ -4,6 +4,13 @@ import { usePayments } from './usePayments';
 import { invoiceService } from '../services/invoiceService';
 import { paymentService } from '../services/paymentService';
 
+/**
+ * useFinance Composite Hook
+ * Adheres strictly to the architectural boundary:
+ * - PostgreSQL (/api/invoices, /api/payments) = Authoritative Data
+ * - React State = UI State
+ * - localStorage = Offline Drafts / Cache Fallback
+ */
 export function useFinance() {
   const { invoices, loading: invoicesLoading, refreshInvoices } = useInvoices();
   const { transactions, refunds, loading: paymentsLoading, refreshPayments } = usePayments();
@@ -29,26 +36,26 @@ export function useFinance() {
     };
   }, [invoices, transactions]);
 
-  const refreshAll = useCallback(() => {
-    refreshInvoices();
-    refreshPayments();
+  const refreshAll = useCallback(async () => {
+    await Promise.all([refreshInvoices(), refreshPayments()]);
   }, [refreshInvoices, refreshPayments]);
 
   const recordPayment = async (params: any) => {
     const result = paymentService.recordPaymentTransaction(params);
-    refreshAll();
+    await refreshPayments();
+    await refreshInvoices();
     return result;
   };
 
   const applyAdjustment = async (params: any) => {
     const result = invoiceService.applyFinancialAdjustment(params);
-    refreshAll();
+    await refreshAll();
     return result;
   };
 
   const recordRefund = async (params: any) => {
     const result = invoiceService.recordRefundTransaction(params);
-    refreshAll();
+    await refreshAll();
     return result;
   };
 

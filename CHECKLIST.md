@@ -4,15 +4,11 @@
 
 ### GitHub Actions Setup
 - [ ] Navigate to GitHub repo → **Settings** → **Secrets and variables** → **Actions**
-- [ ] Click **New repository secret** and add these 8 secrets:
+- [ ] Click **New repository secret** and add required secrets:
   - [ ] `DOCKER_USERNAME` = `kpierre24`
   - [ ] `DOCKER_PASSWORD` = (generate at hub.docker.com → Account Settings → Security → Access Tokens)
   - [ ] `VITE_SUPABASE_URL` = `https://mjaloptcpeytvecbxbza.supabase.co`
   - [ ] `VITE_SUPABASE_ANON_KEY` = (from .env)
-  - [ ] `VITE_FIREBASE_PROJECT_ID` = `gen-lang-client-0349093244`
-  - [ ] `VITE_FIREBASE_API_KEY` = (from .env)
-  - [ ] `VITE_FIREBASE_AUTH_DOMAIN` = `gen-lang-client-0349093244.firebaseapp.com`
-  - [ ] `VITE_FIREBASE_STORAGE_BUCKET` = `gen-lang-client-0349093244.firebasestorage.app`
 - [ ] Commit workflow file: `git add .github/workflows/docker-build-push.yml && git commit -m "Add CI/CD"`
 - [ ] Push to main: `git push origin main`
 - [ ] ✅ GitHub Actions auto-builds and pushes image on every push!

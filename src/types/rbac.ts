@@ -55,7 +55,7 @@ export type Permission =
   | 'roles:manage';
 
 export interface AuthenticatedUser {
-  uid: string;           // Firebase UID
+  uid: string;           // Authenticated User UUID (Supabase Auth UID)
   userId: string;        // Database users table UUID (id)
   id: string;            // Aliased to userId for backward compatibility
   email: string;

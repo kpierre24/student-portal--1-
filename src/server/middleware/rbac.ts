@@ -305,28 +305,47 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
     return null;
   }
 
-  // 2. Authoritative Identity Lookup (Primary: firebase_uid -> internal_user_id)
+  // 2. Authoritative Identity Lookup (Primary: Supabase users.id -> users table, with legacy firebase_uid bridge)
   let dbUser: any = null;
   const supabase = getServerSupabase();
 
   try {
-    // 2a. Primary Lookup: user_identities table for provider = 'firebase' and provider_uid = firebaseUid
-    try {
-      const { data: identityRecord, error: idErr } = await supabase
-        .from("user_identities")
-        .select("user_id, users(id, email, role, is_active, firebase_uid)")
-        .eq("provider", "firebase")
-        .eq("provider_uid", firebaseUid)
-        .maybeSingle();
+    // 2a. Supabase Direct User ID Lookup (auth.users.id === public.users.id)
+    if (firebaseUid) {
+      try {
+        const { data: directIdUser } = await supabase
+          .from("users")
+          .select("id, email, role, is_active, firebase_uid")
+          .eq("id", firebaseUid)
+          .maybeSingle();
 
-      if (!idErr && identityRecord?.users) {
-        dbUser = Array.isArray(identityRecord.users) ? identityRecord.users[0] : identityRecord.users;
+        if (directIdUser) {
+          dbUser = directIdUser;
+        }
+      } catch {
+        // Non-blocking fallback
       }
-    } catch {
-      // Non-blocking fallback to users table
     }
 
-    // 2b. Primary Direct Column Check: users.firebase_uid
+    // 2b. Migration Lookup: user_identities table
+    if (!dbUser) {
+      try {
+        const { data: identityRecord, error: idErr } = await supabase
+          .from("user_identities")
+          .select("user_id, users(id, email, role, is_active, firebase_uid)")
+          .eq("provider", "firebase")
+          .eq("provider_uid", firebaseUid)
+          .maybeSingle();
+
+        if (!idErr && identityRecord?.users) {
+          dbUser = Array.isArray(identityRecord.users) ? identityRecord.users[0] : identityRecord.users;
+        }
+      } catch {
+        // Non-blocking fallback to users table
+      }
+    }
+
+    // 2c. Primary Direct Column Check: users.firebase_uid
     if (!dbUser && firebaseUid) {
       try {
         const { data: directUser, error: directErr } = await supabase
@@ -955,6 +974,11 @@ export function requireResourceOwnership(options: ResourceOwnershipOptions) {
     }
 
     // 5. Student Ownership Check: Validate strictly using immutable internal IDs against database records.
+    // If no specific target was requested, allow self-scoped operations for students
+    if (role === "student" && !targetStudentId && !targetStudentName && !targetEmail) {
+      return next();
+    }
+
     // Do NOT authorize based on name, email prefix, display name, or partial strings.
     try {
       const isOwner = await verifyStudentOwnershipInDatabase(

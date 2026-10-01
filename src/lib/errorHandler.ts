@@ -91,7 +91,7 @@ export function classifyError(error: any, fallbackType: ErrorType = 'unknown'): 
     type = 'network';
     userMessage = 'A network connection issue was detected. Please verify your internet connection.';
   }
-  // 3. Database Errors (Supabase / Postgres / Firestore)
+  // 3. Database Errors (Supabase / Postgres)
   else if (
     code.startsWith('23') || // Integrity Constraint Violation
     code.startsWith('42') || // Syntax / Access Rule Violation

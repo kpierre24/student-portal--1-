@@ -15,7 +15,7 @@
 import { portalApi } from './api/portalApiClient';
 import { supabase } from '../lib/supabaseClient';
 import { saveToSupabase as directSaveToSupabase } from '../lib/supabaseSync';
-import { SyncedAppState } from '../lib/firebaseSync';
+import { SyncedAppState } from '../types/appState';
 import { handleError } from '../lib/errorHandler';
 import { logger } from '../lib/logger';
 import { sanitizeProductionState } from '../data/guards';

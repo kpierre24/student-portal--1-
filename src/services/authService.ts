@@ -1,21 +1,15 @@
 /**
  * ============================================================================
- * PRIMARY AUTHENTICATION SERVICE
+ * PRIMARY AUTHENTICATION SERVICE (Pure Supabase Auth Architecture)
  * HTEIM School of Ministry
  * ============================================================================
  * Handles user authentication, credential matching, and session management
- * using Supabase Auth as primary identity provider, with Google OAuth token
- * acquisition handled through the isolated firebaseAdapter service boundary.
+ * using Supabase Auth as the authoritative identity provider.
  */
 
 import { supabase } from '../lib/supabaseClient';
 import { AppUser, authenticateAdminWithPin } from '../lib/userAuth';
 import { authenticateWithSupabase, AuthVerificationResult } from '../lib/supabaseAuth';
-import { 
-  acquireGoogleOAuthToken, 
-  subscribeToGoogleOAuthState, 
-  logoutGoogleOAuth 
-} from './firebaseAdapter';
 import { logger } from '../lib/logger';
 
 export interface AuthLoginCredentials {
@@ -44,8 +38,8 @@ export async function loginWithSupabaseAuth(
  * Direct Administrator 6-digit PIN authentication (Deprecated - standard login enforced).
  */
 export async function loginAdminWithPin(
-  pin: string,
-  userCredentialsList: any[] = []
+  _pin: string,
+  _userCredentialsList: any[] = []
 ): Promise<AuthVerificationResult> {
   return {
     success: false,
@@ -54,7 +48,7 @@ export async function loginAdminWithPin(
 }
 
 /**
- * Logs out the active user session across Supabase Auth and Google OAuth boundary.
+ * Logs out the active user session cleanly via Supabase Auth.
  */
 export async function logoutUserSession(): Promise<void> {
   try {
@@ -62,22 +56,70 @@ export async function logoutUserSession(): Promise<void> {
   } catch (err) {
     logger.warn("Supabase signOut error:", err);
   }
-  await logoutGoogleOAuth();
 }
 
 /**
- * Initiates Google OAuth Popup flow via the isolated firebaseAdapter.
+ * Retrieves the authoritative Supabase JWT session access token for API requests.
+ */
+export async function getAuthoritativeToken(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  } catch (err) {
+    logger.warn("Error getting Supabase session token:", err);
+    return null;
+  }
+}
+
+/**
+ * Initiates Google OAuth flow using native Supabase Auth.
  */
 export async function loginWithGoogleOAuth(): Promise<{ user: any; accessToken: string } | null> {
-  return await acquireGoogleOAuthToken();
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        scopes: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
+    });
+
+    if (error) {
+      logger.warn("Supabase Google OAuth error:", error);
+      return null;
+    }
+
+    const session = (await supabase.auth.getSession()).data.session;
+    if (session) {
+      return {
+        user: session.user,
+        accessToken: session.provider_token || session.access_token || '',
+      };
+    }
+    return null;
+  } catch (err) {
+    logger.error("loginWithGoogleOAuth error:", err);
+    return null;
+  }
 }
 
 /**
- * Subscribes to Google OAuth state changes via the service boundary adapter.
+ * Subscribes to OAuth state changes via Supabase Auth session tracking.
  */
 export function subscribeToOAuthState(
   onSuccess: (user: any, token: string) => void,
   onFailure: () => void
 ): () => void {
-  return subscribeToGoogleOAuthState(onSuccess, onFailure);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user) {
+      const token = session.provider_token || session.access_token || '';
+      onSuccess(session.user, token);
+    } else if (event === 'SIGNED_OUT') {
+      onFailure();
+    }
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
 }

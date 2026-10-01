@@ -7,8 +7,8 @@
  */
 
 import { logger } from '../../lib/logger';
-import { SyncedAppState } from '../../lib/firebaseSync';
-import { getAuthoritativeFirebaseIdToken } from '../firebaseAdapter';
+import { SyncedAppState } from '../../types/appState';
+import { supabase } from '../../lib/supabaseClient';
 import { getAuthHeaders } from '../../lib/rbacClient';
 
 const API_BASE = '/api';
@@ -32,18 +32,18 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
     url = `${cleanBase}${cleanPath}`;
   }
 
-  // Attach authoritative Firebase ID Token in Authorization header if available
+  // Attach authoritative Supabase session access token in Authorization header
   const authHeaders: Record<string, string> = {};
   try {
-    const idToken = await getAuthoritativeFirebaseIdToken();
-    if (idToken) {
-      authHeaders['Authorization'] = `Bearer ${idToken}`;
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session?.access_token) {
+      authHeaders['Authorization'] = `Bearer ${sessionData.session.access_token}`;
     }
   } catch {
     // Non-blocking
   }
 
-  // Fallback to local session authenticated user headers if idToken not present
+  // Fallback to local session authenticated user headers if token not present
   if (!authHeaders['Authorization']) {
     try {
       const savedUserStr = typeof localStorage !== 'undefined' ? (

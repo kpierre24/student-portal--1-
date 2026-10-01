@@ -1,7 +1,9 @@
 import { supabase } from './supabaseClient';
-import { SyncedAppState } from './firebaseSync';
+import { SyncedAppState } from '../types/appState';
 import { logger } from './logger';
 import { sanitizeProductionState } from '../data/guards';
+
+export type { SyncedAppState };
 
 export async function testSupabaseConnection(): Promise<boolean> {
   try {

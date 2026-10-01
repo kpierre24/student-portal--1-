@@ -153,7 +153,7 @@ describe('Administrative & Cloud Data Operations Suite', () => {
       expect(localStorage.getItem('hteim_anonymize_mode')).toBe('false');
     });
 
-    it('prunes audit logs to maintain Firestore single-document payload limit', () => {
+    it('prunes audit logs to maintain buffer storage payload limit', () => {
       const initialCount = getAuditLogs().length;
       for (let i = 0; i < 35; i++) {
         logActivity({
