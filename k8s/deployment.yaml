@@ -1,0 +1,254 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hteim-school-of-ministry
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hteim-config
+  namespace: hteim-school-of-ministry
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOST: "0.0.0.0"
+  APP_URL: "https://hteim.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hteim-secrets
+  namespace: hteim-school-of-ministry
+type: Opaque
+stringData:
+  GEMINI_API_KEY: "YOUR_GEMINI_API_KEY"
+  VITE_SUPABASE_URL: "https://mjaloptcpeytvecbxbza.supabase.co"
+  VITE_SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY"
+  VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0349093244"
+  VITE_FIREBASE_API_KEY: "YOUR_FIREBASE_API_KEY"
+  VITE_FIREBASE_AUTH_DOMAIN: "gen-lang-client-0349093244.firebaseapp.com"
+  VITE_FIREBASE_STORAGE_BUCKET: "gen-lang-client-0349093244.firebasestorage.app"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hteim-school-of-ministry
+  namespace: hteim-school-of-ministry
+  labels:
+    app: hteim-app
+    version: v1
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: hteim-app
+  template:
+    metadata:
+      labels:
+        app: hteim-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/api/health"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: hteim-app
+        image: kpierre24/hteim-school-of-ministry:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        - name: alt-http
+          containerPort: 8080
+          protocol: TCP
+        
+        # Environment from ConfigMap and Secrets
+        envFrom:
+        - configMapRef:
+            name: hteim-config
+        - secretRef:
+            name: hteim-secrets
+        
+        # Resource limits and requests
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        
+        # Liveness probe: container is alive
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe: container is ready to serve traffic
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        
+        # Startup probe: gives time for slow startups
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 6
+        
+        # Security context for the container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        
+        # Graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 5"]
+        
+        # Volume mounts for temporary storage
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: app-tmp
+          mountPath: /app/tmp
+      
+      # Init container to validate secrets exist
+      initContainers:
+      - name: verify-secrets
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "ERROR: Missing required Supabase secrets"
+            exit 1
+          fi
+          echo "Secrets validation passed"
+        env:
+        - name: VITE_SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: hteim-secrets
+              key: VITE_SUPABASE_URL
+        - name: VITE_SUPABASE_ANON_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hteim-secrets
+              key: VITE_SUPABASE_ANON_KEY
+      
+      # Pod-level security and scheduling
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - hteim-app
+              topologyKey: kubernetes.io/hostname
+      
+      terminationGracePeriodSeconds: 10
+      
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: app-tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hteim-service
+  namespace: hteim-school-of-ministry
+  labels:
+    app: hteim-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: hteim-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  - name: alt-http
+    port: 8080
+    targetPort: alt-http
+    protocol: TCP
+  sessionAffinity: None
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hteim-hpa
+  namespace: hteim-school-of-ministry
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hteim-school-of-ministry
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 30
+      selectPolicy: Max

@@ -1,0 +1,81 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "attendance",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "classDayId", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "createdAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance",
+      "fields": [
+        { "fieldPath": "classDayId", "mode": "ASCENDING" },
+        { "fieldPath": "present", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "status", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "payments",
+      "fields": [
+        { "fieldPath": "status", "mode": "ASCENDING" },
+        { "fieldPath": "lastPaymentDate", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "submissions",
+      "fields": [
+        { "fieldPath": "assignmentId", "mode": "ASCENDING" },
+        { "fieldPath": "status", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "submissions",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "submittedAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "fields": [
+        { "fieldPath": "courseCode", "mode": "ASCENDING" },
+        { "fieldPath": "dueDate", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "createdAt", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "auditLogs",
+      "fields": [
+        { "fieldPath": "timestamp", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messages",
+      "fields": [
+        { "fieldPath": "studentName", "mode": "ASCENDING" },
+        { "fieldPath": "createdAt", "mode": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

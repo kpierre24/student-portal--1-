@@ -1,0 +1,24 @@
+{
+  "sessionId": "1f649bbc-3fed-4750-bc97-703a26569657",
+  "createdUtc": "2026-09-10T05:05:50Z",
+  "lastModifiedUtc": "2026-09-10T05:05:50Z",
+  "currentPhase": "prereq",
+  "completedPhases": [],
+  "intent": {
+    "userPrompt": "evaluate my app. what new features can be added and what recommendations you have",
+    "description": "Evaluate the application and recommend new features."
+  },
+  "components": [],
+  "azure": {
+    "subscriptionId": "",
+    "subscriptionName": "",
+    "resourceGroup": "",
+    "region": ""
+  },
+  "repo": {
+    "remote": "https://github.com/kpierre24/School-of-Ministry-2026"
+  },
+  "detectedInfra": [],
+  "detectedServices": [],
+  "overrides": []
+}

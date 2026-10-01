@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "AppState": {
+      "title": "AppState",
+      "description": "Entire application state synced to Firestore for multi-device support",
+      "type": "object",
+      "properties": {
+        "records": {
+          "type": "array",
+          "description": "List of attendance records"
+        },
+        "classDays": {
+          "type": "array",
+          "description": "List of configured class days"
+        },
+        "studentNotes": {
+          "type": "object",
+          "description": "Student notes keyed by lowercase name"
+        },
+        "excusedAbsences": {
+          "type": "object",
+          "description": "Excused absences nested mapping"
+        },
+        "rubricScores": {
+          "type": "object",
+          "description": "Rubric evaluation scores"
+        },
+        "deletedStudentNames": {
+          "type": "array",
+          "description": "Deleted or excluded student names"
+        },
+        "studentPhotos": {
+          "type": "object",
+          "description": "Student photo Data URLs keyed by lowercase name"
+        },
+        "studentLevels": {
+          "type": "object",
+          "description": "Student academic levels keyed by lowercase name"
+        },
+        "customAssignments": {
+          "type": "array",
+          "description": "Custom assignments created in portal"
+        },
+        "submissions": {
+          "type": "array",
+          "description": "Submitted responses for assignments"
+        },
+        "notifications": {
+          "type": "array",
+          "description": "Stored user notifications"
+        },
+        "sheetUrl": {
+          "type": "string",
+          "description": "Current active Google sheet URL"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of the last update"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "User email or identifier who performed the update"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/app_states/{stateId}": {
+      "schema": "AppState",
+      "description": "Stored app state documents keyed by workspace/applet ID or individual user email"
+    }
+  }
+}

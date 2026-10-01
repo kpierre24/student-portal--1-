@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+firebase-applet-config.json
+dev-dist/
+School-of-Ministry-2026-azure/
+*.tmp
+*.bak
+

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Comprehensive academic portal, student attendance, class lecture notes, and parallel Amplified Bible (AMP) for HTEIM School of Ministry." />
+    <meta property="og:title" content="HTEIM School of Ministry" />
+    <meta property="og:description" content="Comprehensive academic portal, student attendance, class lecture notes, and parallel Amplified Bible (AMP) for HTEIM School of Ministry." />
+    
+    <!-- Security Meta Tags -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws:; object-src 'none'; base-uri 'self';" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!-- Mobile & Apple PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HTEIM School of Ministry" />
+    <meta name="application-name" content="HTEIM School of Ministry" />
+    <meta name="msapplication-TileColor" content="#0f172a" />
+
+    <!-- Google Fonts for Selected Design Variation -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Icons & Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/hteim_logo.svg" />
+    <link rel="apple-touch-icon" href="/hteim_logo.svg" />
+    
+    <title>HTEIM School of Ministry</title>
+    <script>
+      // Filter benign Vite development WebSocket / HMR connection logs in AI Studio preview environment
+      (function() {
+        var origConsoleError = console.error;
+        console.error = function() {
+          var first = arguments[0];
+          if (
+            typeof first === 'string' &&
+            first.indexOf('[vite]') !== -1 &&
+            (first.indexOf('websocket') !== -1 || first.indexOf('connect') !== -1)
+          ) {
+            return;
+          }
+          origConsoleError.apply(console, arguments);
+        };
+      })();
+    </script>
+  </head>
+  <body class="bg-slate-900 text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

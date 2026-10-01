@@ -1,0 +1,116 @@
+name: Continuous Integration & Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  VITE_SUPABASE_URL: "https://mock.supabase.co"
+  VITE_SUPABASE_ANON_KEY: "mock-key"
+  SUPABASE_URL: "https://mock.supabase.co"
+  SUPABASE_SERVICE_ROLE_KEY: "mock-key"
+  VITE_FIREBASE_PROJECT_ID: "mock-project"
+  VITE_FIREBASE_API_KEY: "mock-key"
+  VITE_FIREBASE_AUTH_DOMAIN: "mock.firebaseapp.com"
+  VITE_FIREBASE_STORAGE_BUCKET: "mock.firebasestorage.app"
+
+jobs:
+  eslint:
+    name: ESLint Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint:eslint
+
+  typescript:
+    name: TypeScript Static Type Analysis
+    needs: eslint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+
+  unit-tests:
+    name: Unit & Integration Testing
+    needs: typescript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Run Vitest Suite
+        run: npm run test
+
+  security-audit:
+    name: Security Vulnerability Audit
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Dependency Security Audit
+        run: npm audit --audit-level=high || true
+
+  db-validation:
+    name: Database Schema & Constraint Validation
+    needs: security-audit
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://mock.supabase.co' }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'mock-key' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Validate Constraints
+        run: npm run db:validate-constraints
+
+  production-build:
+    name: Production Bundle Build
+    needs: db-validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Execute Production Build
+        run: npm run build
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

@@ -1,0 +1,378 @@
+{
+  "translation": "AMP",
+  "name": "Amplified Bible",
+  "description": "Amplified Bible (AMP) with detailed exegesis, clarifications, and semantic expansions for theological study.",
+  "books": {
+    "2ti": {
+      "name": "2 Timothy",
+      "chapters": {
+        "1": [
+          {
+            "verse": 1,
+            "text": "Paul, an apostle (special messenger, personally chosen representative) of Christ Jesus (the Messiah, the Anointed) by the will of God, according to the promise of life which is in Christ Jesus,"
+          },
+          {
+            "verse": 2,
+            "text": "To Timothy, my beloved son: Grace, mercy, and peace from God the Father and Christ Jesus our Lord."
+          },
+          {
+            "verse": 3,
+            "text": "I thank God, whom I worship with a pure conscience as my forefathers did, that without ceasing I remember you constantly in my prayers night and day,"
+          },
+          {
+            "verse": 4,
+            "text": "longing to see you, being mindful of your tears, so that I may be filled with joy."
+          },
+          {
+            "verse": 5,
+            "text": "I am reminded of the authentic faith that is in you, which first dwelt in your grandmother Lois and your mother Eunice, and I am persuaded is in you also."
+          },
+          {
+            "verse": 6,
+            "text": "That is why I remind you to fan into flame the gracious gift of God, [that inner fire—the special endowment] which is in you through the laying on of my hands [with their prophetic declarations]."
+          },
+          {
+            "verse": 7,
+            "text": "For God did not give us a spirit of timidity or cowardice or fear, but [He has given us a spirit] of power and of love and of sound judgment and personal discipline [abilities that result in a calm, well-balanced mind and self-control]."
+          },
+          {
+            "verse": 8,
+            "text": "So do not be ashamed of the testimony of our Lord or of me His prisoner, but join with me in suffering for the gospel according to the power of God [who saves us];"
+          },
+          {
+            "verse": 9,
+            "text": "for He saved us and called us with a holy calling, not according to our works, but according to His own purpose and grace which was granted to us in Christ Jesus from all eternity."
+          },
+          {
+            "verse": 10,
+            "text": "and has now been revealed by the appearing of our Savior Christ Jesus, who abolished death and brought life and immortality to light through the gospel."
+          },
+          {
+            "verse": 11,
+            "text": "For this gospel I was appointed a herald and an apostle and a teacher."
+          },
+          {
+            "verse": 12,
+            "text": "This is why I suffer as I do. Still, I am not ashamed; for I know whom I have believed and am convinced that He is able to guard until that day what has been entrusted to me."
+          },
+          {
+            "verse": 13,
+            "text": "Hold fast and follow the pattern of sound doctrine and wholesome teachings which you have heard from me, in the faith and love which are in Christ Jesus."
+          },
+          {
+            "verse": 14,
+            "text": "Carefully guard and protect [as a precious deposit] that excellent and priceless truth which has been entrusted to you by the Holy Spirit who dwells within us."
+          }
+        ],
+        "2": [
+          {
+            "verse": 1,
+            "text": "So you, my son, be strong [constantly strengthened and empowered] in the grace that is [to be found only] in Christ Jesus."
+          },
+          {
+            "verse": 2,
+            "text": "The things which you have heard from me in the presence of many witnesses, entrust to reliable and faithful men who will also be capable and qualified to teach others."
+          },
+          {
+            "verse": 3,
+            "text": "Take your share of hardship as a good soldier of Christ Jesus."
+          },
+          {
+            "verse": 4,
+            "text": "No soldier in active service entangles himself in the affairs of civilian life, so that he may please the one who enlisted him."
+          },
+          {
+            "verse": 5,
+            "text": "Also if anyone competes as an athlete, he is not crowned unless he competes according to the rules."
+          },
+          {
+            "verse": 15,
+            "text": "Study and do your utmost to present yourself approved unto God, a workman that needeth not to be ashamed, accurately handling and skillfully teaching the word of truth."
+          },
+          {
+            "verse": 19,
+            "text": "Nevertheless, the firm foundation of God [which He has laid] stands firm and unshakable, bearing this seal: 'The Lord knows those who are His,' and, 'Let everyone who names the name of the Lord stand away from wickedness.'"
+          },
+          {
+            "verse": 20,
+            "text": "Now in a large house there are not only vessels and objects of gold and silver, but also vessels and objects of wood and of earthenware, and some are for honorable (noble, good) use and some for dishonorable (ignoble, common)."
+          },
+          {
+            "verse": 21,
+            "text": "Therefore, if anyone cleanses himself from these things [which are dishonorable—disobedient, sinful], he will be a vessel for honor, sanctified [set apart for a special purpose and made holy], useful to the Master, prepared for every good work."
+          },
+          {
+            "verse": 22,
+            "text": "Run away from youthful lusts and pursue righteousness, faith, love, and peace with those who call on the Lord out of a pure heart."
+          },
+          {
+            "verse": 24,
+            "text": "The Lord's servant must not be quarrelsome, but kind to everyone [mild-tempered, preserving the bond of peace]; he must be a skilled teacher, patient and forbearing when wronged."
+          }
+        ],
+        "3": [
+          {
+            "verse": 1,
+            "text": "But understand this: in the last days dangerous times [of great stress and trouble] will come [difficult days that will be hard to bear]."
+          },
+          {
+            "verse": 5,
+            "text": "holding to a form of [outward] godliness (religion), although they have denied its power [for their conduct nullifies their claim of faith]. Avoid such people and keep far away from them."
+          },
+          {
+            "verse": 14,
+            "text": "But as for you, continue in what you have learned and have firmly believed, knowing from whom you learned it."
+          },
+          {
+            "verse": 15,
+            "text": "and how from childhood you have been acquainted with the sacred scriptures, which are able to make you wise for salvation through faith in Christ Jesus."
+          },
+          {
+            "verse": 16,
+            "text": "All Scripture is God-breathed [given by divine inspiration] and is profitable for instruction, for conviction [of sin], for correction [of error and restoration to obedience], for training in righteousness [learning to live in conformity to God's will];"
+          },
+          {
+            "verse": 17,
+            "text": "so that the man of God may be complete and proficient, outfitted and thoroughly equipped for every good work."
+          }
+        ],
+        "4": [
+          {
+            "verse": 1,
+            "text": "I solemnly charge you in the presence of God and of Christ Jesus, who is to judge the living and the dead, and by His appearing and His kingdom:"
+          },
+          {
+            "verse": 2,
+            "text": "Preach the word [as an official messenger]; be ready in season and out of season [when convenient or inconvenient]; reprove, rebuke, and encourage, with great patience and careful instruction."
+          },
+          {
+            "verse": 5,
+            "text": "As for you, be calm and sober-minded in all situations, endure suffering, do the work of an evangelist, discharge fully all the duties of your ministry."
+          },
+          {
+            "verse": 7,
+            "text": "I have fought the good [worthy, honorable] fight, I have finished the race, I have kept the faith [firmly guarding the gospel]."
+          },
+          {
+            "verse": 8,
+            "text": "Now there is in store for me the crown of righteousness, which the Lord, the righteous Judge, will award to me on that day—and not only to me, but also to all who have loved His appearing."
+          }
+        ]
+      }
+    },
+    "eph": {
+      "name": "Ephesians",
+      "chapters": {
+        "4": [
+          {
+            "verse": 1,
+            "text": "Therefore I, the prisoner of the Lord, urge you to walk in a manner worthy of the calling with which you have been called [with lives that exhibit your godly character];"
+          },
+          {
+            "verse": 11,
+            "text": "And His gifts were [varied; He Himself appointed and gave men to us] some to be apostles (special messengers), some prophets (inspired preachers and expounders), some evangelists (preachers of the Gospel, traveling missionaries), some pastors (shepherds of His flock) and teachers."
+          },
+          {
+            "verse": 12,
+            "text": "His intention was the perfecting and the full equipping of the saints (His consecrated people), [that they should do] the work of ministering toward building up Christ's body (the church),"
+          },
+          {
+            "verse": 13,
+            "text": "until we all attain oneness in the faith and in the comprehension of the full knowledge of the Son of God, that [we might arrive] at really mature manhood [the completeness of personality], even to the measure of the stature of the fullness of the Christ."
+          },
+          {
+            "verse": 14,
+            "text": "So then, we may no longer be children, tossed [like ships] on the waves and carried about with every wind of doctrine, by the cunning and trickery of men who use craftiness in deceitful schemes;"
+          },
+          {
+            "verse": 15,
+            "text": "Rather, let our lives lovingly express truth [in all things, speaking truly, dealing truly, living truly]. Enfolded in love, let us grow up in every way and in all things into Him Who is the Head, [even] Christ (the Messiah, the Anointed One)."
+          },
+          {
+            "verse": 16,
+            "text": "For because of Him the whole body (the church, in all its various parts), closely joined and firmly knit together by the joints and ligaments with which it is supplied, when each part is working properly, grows and edifies itself in love."
+          }
+        ],
+        "6": [
+          {
+            "verse": 10,
+            "text": "In conclusion, be strong in the Lord [be empowered through your union with Him]; draw your strength from Him [that strength which His boundless might provides]."
+          },
+          {
+            "verse": 11,
+            "text": "Put on God's whole armor [the heavy armor of a heavy-armed soldier which God supplies], that you may be able successfully to stand up against [all] the strategies and the deceits of the devil."
+          },
+          {
+            "verse": 12,
+            "text": "For we are not wrestling with flesh and blood [contending only with physical opponents], but against the despotisms, against the powers, against [the master spirits who are] the world rulers of this present darkness, against the spirit forces of wickedness in the heavenly (supernatural) sphere."
+          },
+          {
+            "verse": 13,
+            "text": "Therefore put on the complete armor of God, so that you may be able to [successfully] resist and stand your ground in the evil day [of danger], and having done everything [that the crisis demands], to stand firm [in your place, fully prepared, immovable, victorious]."
+          },
+          {
+            "verse": 14,
+            "text": "Stand therefore [hold your ground], having tightened the belt of truth around your loins and having put on the breastplate of integrity and of moral rectitude and right standing with God,"
+          },
+          {
+            "verse": 17,
+            "text": "And take the helmet of salvation and the sword that the Spirit wields, which is the Word of God."
+          },
+          {
+            "verse": 18,
+            "text": "Pray at all times (on every occasion, in every season) in the Spirit, with all [manner of] prayer and entreaty. To that end keep alert and watch with strong purpose and perseverance, interceding in behalf of all the saints (God's consecrated people)."
+          }
+        ]
+      }
+    },
+    "rom": {
+      "name": "Romans",
+      "chapters": {
+        "8": [
+          {
+            "verse": 1,
+            "text": "Therefore there is now no condemnation [no guilty verdict, no punishment] for those who are in Christ Jesus [who believe in Him as personal Savior and Lord]."
+          },
+          {
+            "verse": 14,
+            "text": "For all who are allowing themselves to be led by the Spirit of God are sons of God."
+          },
+          {
+            "verse": 28,
+            "text": "And we know [with great confidence] that God [who is deeply concerned about us] causes all things to work together as a plan for good for those who love God, to those who are called according to His plan and purpose."
+          },
+          {
+            "verse": 31,
+            "text": "What then shall we say to all these things? If God is for us, who can be [successful] against us?"
+          },
+          {
+            "verse": 37,
+            "text": "Yet in all these things we are more than conquerors and gain an overwhelming victory through Him who loved us [so much that He died for us]."
+          }
+        ],
+        "12": [
+          {
+            "verse": 1,
+            "text": "Therefore I urge you, brothers and sisters, by the mercies of God, to present your bodies [dedicating all of yourselves, set apart] as a living sacrifice, holy and well-pleasing to God, which is your rational (logical, intelligent) act of worship."
+          },
+          {
+            "verse": 2,
+            "text": "And do not be conformed to this world [any longer with its superficial values and customs], but be transformed and progressively changed [as you mature spiritually] by the renewing of your mind [focusing on godly values and ethical attitudes], so that you may prove [for yourselves] what the will of God is, that which is good and acceptable and perfect [in His plan and purpose for you]."
+          },
+          {
+            "verse": 6,
+            "text": "Since we have gifts that differ according to the grace given to us, each of us is to use them accordingly: if [someone has the gift of] prophecy, [let him speak a new message from God to His people] in proportion to the faith possessed;"
+          }
+        ]
+      }
+    },
+    "psa": {
+      "name": "Psalms",
+      "chapters": {
+        "23": [
+          {
+            "verse": 1,
+            "text": "The Lord is my Shepherd [to feed, to guide and to shield me]; I shall not lack."
+          },
+          {
+            "verse": 2,
+            "text": "He makes me lie down in [fresh, tender] green pastures; He leads me beside the still and restful waters."
+          },
+          {
+            "verse": 3,
+            "text": "He refreshes and restores my life (my self); He leads me in the paths of righteousness [uprightness and right standing with Him—not for my earning it, but] for His name's sake."
+          },
+          {
+            "verse": 4,
+            "text": "Yes, though I walk through the [deep, sunless] valley of the shadow of death, I will fear or dread no evil, for You are with me; Your rod [to protect] and Your staff [to guide], they comfort me."
+          },
+          {
+            "verse": 5,
+            "text": "You prepare a table before me in the presence of my enemies. You have anointed my head with oil; My cup runs over."
+          },
+          {
+            "verse": 6,
+            "text": "Surely or only goodness, mercy, and unfailing love shall follow me all the days of my life, and through the length of my days the house of the Lord [and His presence] shall be my dwelling place."
+          }
+        ],
+        "91": [
+          {
+            "verse": 1,
+            "text": "He who dwells in the shelter of the Most High Will remain secure and rest in the shadow of the Almighty [whose power no enemy can withstand]."
+          },
+          {
+            "verse": 2,
+            "text": "I will say of the Lord, 'He is my refuge and my fortress, My God, in whom I trust [with great confidence, and on whom I rely]!'"
+          },
+          {
+            "verse": 7,
+            "text": "A thousand may fall at your side And ten thousand at your right hand, But danger will not come near you."
+          },
+          {
+            "verse": 11,
+            "text": "For He will command His angels regarding you, To protect and safeguard you in all your ways [of obedience and service]."
+          }
+        ]
+      }
+    },
+    "heb": {
+      "name": "Hebrews",
+      "chapters": {
+        "11": [
+          {
+            "verse": 1,
+            "text": "Now faith is the assurance (title deed, confirmation) of things hoped for (divinely guaranteed), and the evidence of things not seen [the conviction of their reality—faith comprehends as fact what cannot be experienced by the physical senses]."
+          },
+          {
+            "verse": 6,
+            "text": "But without faith it is impossible to [walk with God and] please Him, for whoever comes [near] to God must [necessarily] believe that God exists and that He rewards those who [earnestly and diligently] seek Him."
+          }
+        ],
+        "13": [
+          {
+            "verse": 7,
+            "text": "Remember your leaders [for it was they] who brought you the word of God; and consider the result of their conduct, and imitate their faith [their devotion to Christ, their conviction of the truth, their obedience to God's will]."
+          },
+          {
+            "verse": 8,
+            "text": "Jesus Christ is [eternally changeless, always] the same yesterday and today and forever."
+          }
+        ]
+      }
+    },
+    "mat": {
+      "name": "Matthew",
+      "chapters": {
+        "28": [
+          {
+            "verse": 18,
+            "text": "Jesus came up and said to them, 'All authority (all power of absolute rule) in heaven and on earth has been given to Me.'"
+          },
+          {
+            "verse": 19,
+            "text": "Go therefore and make disciples of all the nations [help the people to learn of Me, believe in Me, and obey My words], baptizing them in the name of the Father and of the Son and of the Holy Spirit,"
+          },
+          {
+            "verse": 20,
+            "text": "teaching them to observe everything that I have commanded you; and lo, I am with you always [remaining with you perpetually—regardless of circumstance, and on every occasion], even to the end of the age.'"
+          }
+        ]
+      }
+    },
+    "pro": {
+      "name": "Proverbs",
+      "chapters": {
+        "3": [
+          {
+            "verse": 5,
+            "text": "Trust in and rely confidently on the Lord with all your heart And do not rely on your own insight or understanding."
+          },
+          {
+            "verse": 6,
+            "text": "In all your ways know and acknowledge and recognize Him, And He will make your paths straight and smooth [removing obstacles that block your way]."
+          }
+        ]
+      }
+    }
+  }
+}

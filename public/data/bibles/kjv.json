@@ -1,0 +1,380 @@
+{
+  "translation": "KJV",
+  "name": "King James Version",
+  "publishedYear": 1611,
+  "publicDomain": true,
+  "description": "Official Authorized King James Version (KJV) for HTEIM ministerial training and doctrinal reading.",
+  "books": {
+    "2ti": {
+      "name": "2 Timothy",
+      "chapters": {
+        "1": [
+          {
+            "verse": 1,
+            "text": "Paul, an apostle of Jesus Christ by the will of God, according to the promise of life which is in Christ Jesus,"
+          },
+          {
+            "verse": 2,
+            "text": "To Timothy, my dearly beloved son: Grace, mercy, and peace, from God the Father and Christ Jesus our Lord."
+          },
+          {
+            "verse": 3,
+            "text": "I thank God, whom I serve from my forefathers with pure conscience, that without ceasing I have remembrance of thee in my prayers night and day;"
+          },
+          {
+            "verse": 4,
+            "text": "Greatly desiring to see thee, being mindful of thy tears, that I may be filled with joy;"
+          },
+          {
+            "verse": 5,
+            "text": "When I call to remembrance the unfeigned faith that is in thee, which dwelt first in thy grandmother Lois, and thy mother Eunice; and I am persuaded that in thee also."
+          },
+          {
+            "verse": 6,
+            "text": "Wherefore I put thee in remembrance that thou stir up the gift of God, which is in thee by the putting on of my hands."
+          },
+          {
+            "verse": 7,
+            "text": "For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind."
+          },
+          {
+            "verse": 8,
+            "text": "Be not thou therefore ashamed of the testimony of our Lord, nor of me his prisoner: but be thou partaker of the afflictions of the gospel according to the power of God;"
+          },
+          {
+            "verse": 9,
+            "text": "Who hath saved us, and called us with an holy calling, not according to our works, but according to his own purpose and grace, which was given us in Christ Jesus before the world began,"
+          },
+          {
+            "verse": 10,
+            "text": "But is now made manifest by the appearing of our Saviour Jesus Christ, who hath abolished death, and hath brought life and immortality to light through the gospel:"
+          },
+          {
+            "verse": 11,
+            "text": "Whereunto I am appointed a preacher, and an apostle, and a teacher of the Gentiles."
+          },
+          {
+            "verse": 12,
+            "text": "For the which cause I also suffer these things: nevertheless I am not ashamed: for I know whom I have believed, and am persuaded that he is able to keep that which I have committed unto him against that day."
+          },
+          {
+            "verse": 13,
+            "text": "Hold fast the form of sound words, which thou hast heard of me, in faith and love which is in Christ Jesus."
+          },
+          {
+            "verse": 14,
+            "text": "That good thing which was committed unto thee keep by the Holy Ghost which dwelleth in us."
+          }
+        ],
+        "2": [
+          {
+            "verse": 1,
+            "text": "Thou therefore, my son, be strong in the grace that is in Christ Jesus."
+          },
+          {
+            "verse": 2,
+            "text": "And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men, who shall be able to teach others also."
+          },
+          {
+            "verse": 3,
+            "text": "Thou therefore endure hardness, as a good soldier of Jesus Christ."
+          },
+          {
+            "verse": 4,
+            "text": "No man that warreth entangleth himself with the affairs of this life; that he may please him who hath chosen him to be a soldier."
+          },
+          {
+            "verse": 5,
+            "text": "And if a man also strive for masteries, yet is he not crowned, except he strive lawfully."
+          },
+          {
+            "verse": 15,
+            "text": "Study to shew thyself approved unto God, a workman that needeth not to be ashamed, rightly dividing the word of truth."
+          },
+          {
+            "verse": 19,
+            "text": "Nevertheless the foundation of God standeth sure, having this seal, The Lord knoweth them that are his. And, Let every one that nameth the name of Christ depart from iniquity."
+          },
+          {
+            "verse": 20,
+            "text": "But in a great house there are not only vessels of gold and of silver, but also of wood and of earth; and some to honour, and some to dishonour."
+          },
+          {
+            "verse": 21,
+            "text": "If a man therefore purge himself from these, he shall be a vessel unto honour, sanctified, and meet for the master's use, and prepared unto every good work."
+          },
+          {
+            "verse": 22,
+            "text": "Flee also youthful lusts: but follow righteousness, faith, charity, peace, with them that call on the Lord out of a pure heart."
+          },
+          {
+            "verse": 24,
+            "text": "And the servant of the Lord must not strive; but be gentle unto all men, apt to teach, patient,"
+          }
+        ],
+        "3": [
+          {
+            "verse": 1,
+            "text": "This know also, that in the last days perilous times shall come."
+          },
+          {
+            "verse": 5,
+            "text": "Having a form of godliness, but denying the power thereof: from such turn away."
+          },
+          {
+            "verse": 14,
+            "text": "But continue thou in the things which thou hast learned and hast been assured of, knowing of whom thou hast learned them;"
+          },
+          {
+            "verse": 15,
+            "text": "And that from a child thou hast known the holy scriptures, which are able to make thee wise unto salvation through faith which is in Christ Jesus."
+          },
+          {
+            "verse": 16,
+            "text": "All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness:"
+          },
+          {
+            "verse": 17,
+            "text": "That the man of God may be perfect, throughly furnished unto all good works."
+          }
+        ],
+        "4": [
+          {
+            "verse": 1,
+            "text": "I charge thee therefore before God, and the Lord Jesus Christ, who shall judge the quick and the dead at his appearing and his kingdom;"
+          },
+          {
+            "verse": 2,
+            "text": "Preach the word; be instant in season, out of season; reprove, rebuke, exhort with all long suffering and doctrine."
+          },
+          {
+            "verse": 5,
+            "text": "But watch thou in all things, endure afflictions, do the work of an evangelist, make full proof of thy ministry."
+          },
+          {
+            "verse": 7,
+            "text": "I have fought a good fight, I have finished my course, I have kept the faith:"
+          },
+          {
+            "verse": 8,
+            "text": "Henceforth there is laid up for me a crown of righteousness, which the Lord, the righteous judge, shall give me at that day: and not to me only, but unto all them also that love his appearing."
+          }
+        ]
+      }
+    },
+    "eph": {
+      "name": "Ephesians",
+      "chapters": {
+        "4": [
+          {
+            "verse": 1,
+            "text": "I therefore, the prisoner of the Lord, beseech you that ye walk worthy of the vocation wherewith ye are called,"
+          },
+          {
+            "verse": 11,
+            "text": "And he gave some, apostles; and some, prophets; and some, evangelists; and some, pastors and teachers;"
+          },
+          {
+            "verse": 12,
+            "text": "For the perfecting of the saints, for the work of the ministry, for the edifying of the body of Christ:"
+          },
+          {
+            "verse": 13,
+            "text": "Till we all come in the unity of the faith, and of the knowledge of the Son of God, unto a perfect man, unto the measure of the stature of the fulness of Christ:"
+          },
+          {
+            "verse": 14,
+            "text": "That we henceforth be no more children, tossed to and fro, and carried about with every wind of doctrine, by the sleight of men, and cunning craftiness, whereby they lie in wait to deceive;"
+          },
+          {
+            "verse": 15,
+            "text": "But speaking the truth in love, may grow up into him in all things, which is the head, even Christ:"
+          },
+          {
+            "verse": 16,
+            "text": "From whom the whole body fitly joined together and compacted by that which every joint supplieth, according to the effectual working in the measure of every part, maketh increase of the body unto the edifying of itself in love."
+          }
+        ],
+        "6": [
+          {
+            "verse": 10,
+            "text": "Finally, my brethren, be strong in the Lord, and in the power of his might."
+          },
+          {
+            "verse": 11,
+            "text": "Put on the whole armour of God, that ye may be able to stand against the wiles of the devil."
+          },
+          {
+            "verse": 12,
+            "text": "For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places."
+          },
+          {
+            "verse": 13,
+            "text": "Wherefore take unto you the whole armour of God, that ye may be able to withstand in the evil day, and having done all, to stand."
+          },
+          {
+            "verse": 14,
+            "text": "Stand therefore, having your loins girt about with truth, and having on the breastplate of righteousness;"
+          },
+          {
+            "verse": 17,
+            "text": "And take the helmet of salvation, and the sword of the Spirit, which is the word of God:"
+          },
+          {
+            "verse": 18,
+            "text": "Praying always with all prayer and supplication in the Spirit, and watching thereunto with all perseverance and supplication for all saints;"
+          }
+        ]
+      }
+    },
+    "rom": {
+      "name": "Romans",
+      "chapters": {
+        "8": [
+          {
+            "verse": 1,
+            "text": "There is therefore now no condemnation to them which are in Christ Jesus, who walk not after the flesh, but after the Spirit."
+          },
+          {
+            "verse": 14,
+            "text": "For as many as are led by the Spirit of God, they are the sons of God."
+          },
+          {
+            "verse": 28,
+            "text": "And we know that all things work together for good to them that love God, to them who are the called according to his purpose."
+          },
+          {
+            "verse": 31,
+            "text": "What shall we then say to these things? If God be for us, who can be against us?"
+          },
+          {
+            "verse": 37,
+            "text": "Nay, in all these things we are more than conquerors through him that loved us."
+          }
+        ],
+        "12": [
+          {
+            "verse": 1,
+            "text": "I beseech you therefore, brethren, by the mercies of God, that ye present your bodies a living sacrifice, holy, acceptable unto God, which is your reasonable service."
+          },
+          {
+            "verse": 2,
+            "text": "And be not conformed to this world: but be ye transformed by the renewing of your mind, that ye may prove what is that good, and acceptable, and perfect, will of God."
+          },
+          {
+            "verse": 6,
+            "text": "Having then gifts differing according to the grace that is given to us, whether prophecy, let us prophesy according to the proportion of faith;"
+          }
+        ]
+      }
+    },
+    "psa": {
+      "name": "Psalms",
+      "chapters": {
+        "23": [
+          {
+            "verse": 1,
+            "text": "The LORD is my shepherd; I shall not want."
+          },
+          {
+            "verse": 2,
+            "text": "He maketh me to lie down in green pastures: he leadeth me beside the still waters."
+          },
+          {
+            "verse": 3,
+            "text": "He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake."
+          },
+          {
+            "verse": 4,
+            "text": "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me."
+          },
+          {
+            "verse": 5,
+            "text": "Thou preparest a table before me in the presence of mine enemies: thou anointest my head with oil; my cup runneth over."
+          },
+          {
+            "verse": 6,
+            "text": "Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the LORD for ever."
+          }
+        ],
+        "91": [
+          {
+            "verse": 1,
+            "text": "He that dwelleth in the secret place of the most High shall abide under the shadow of the Almighty."
+          },
+          {
+            "verse": 2,
+            "text": "I will say of the LORD, He is my refuge and my fortress: my God; in him will I trust."
+          },
+          {
+            "verse": 7,
+            "text": "A thousand shall fall at thy side, and ten thousand at thy right hand; but it shall not come nigh thee."
+          },
+          {
+            "verse": 11,
+            "text": "For he shall give his angels charge over thee, to keep thee in all thy ways."
+          }
+        ]
+      }
+    },
+    "heb": {
+      "name": "Hebrews",
+      "chapters": {
+        "11": [
+          {
+            "verse": 1,
+            "text": "Now faith is the substance of things hoped for, the evidence of things not seen."
+          },
+          {
+            "verse": 6,
+            "text": "But without faith it is impossible to please him: for he that cometh to God must believe that he is, and that he is a rewarder of them that diligently seek him."
+          }
+        ],
+        "13": [
+          {
+            "verse": 7,
+            "text": "Remember them which have the rule over you, who have spoken unto you the word of God: whose faith follow, considering the end of their conversation."
+          },
+          {
+            "verse": 8,
+            "text": "Jesus Christ the same yesterday, and to day, and for ever."
+          }
+        ]
+      }
+    },
+    "mat": {
+      "name": "Matthew",
+      "chapters": {
+        "28": [
+          {
+            "verse": 18,
+            "text": "And Jesus came and spake unto them, saying, All power is given unto me in heaven and in earth."
+          },
+          {
+            "verse": 19,
+            "text": "Go ye therefore, and teach all nations, baptizing them in the name of the Father, and of the Son, and of the Holy Ghost:"
+          },
+          {
+            "verse": 20,
+            "text": "Teaching them to observe all things whatsoever I have commanded you: and, lo, I am with you alway, even unto the end of the world. Amen."
+          }
+        ]
+      }
+    },
+    "pro": {
+      "name": "Proverbs",
+      "chapters": {
+        "3": [
+          {
+            "verse": 5,
+            "text": "Trust in the LORD with all thine heart; and lean not unto thine own understanding."
+          },
+          {
+            "verse": 6,
+            "text": "In all thy ways acknowledge him, and he shall direct thy paths."
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "HTEIM School of Ministry",
+  "description": "Comprehensive academic portal, student attendance, class lecture notes, and parallel Amplified Bible (AMP) for HTEIM School of Ministry.",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

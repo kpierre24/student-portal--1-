@@ -1,0 +1,456 @@
+{
+  "translations": [
+    "AMP",
+    "KJV"
+  ],
+  "books": {
+    "2ti": {
+      "name": "2 Timothy",
+      "chapters": {
+        "1": [
+          {
+            "verse": 1,
+            "amp": "Paul, an apostle (special messenger, personally chosen representative) of Christ Jesus (the Messiah, the Anointed) by the will of God, according to the promise of life which is in Christ Jesus,",
+            "kjv": "Paul, an apostle of Jesus Christ by the will of God, according to the promise of life which is in Christ Jesus,"
+          },
+          {
+            "verse": 2,
+            "amp": "To Timothy, my beloved son: Grace, mercy, and peace from God the Father and Christ Jesus our Lord.",
+            "kjv": "To Timothy, my dearly beloved son: Grace, mercy, and peace, from God the Father and Christ Jesus our Lord."
+          },
+          {
+            "verse": 3,
+            "amp": "I thank God, whom I worship with a pure conscience as my forefathers did, that without ceasing I remember you constantly in my prayers night and day,",
+            "kjv": "I thank God, whom I serve from my forefathers with pure conscience, that without ceasing I have remembrance of thee in my prayers night and day;"
+          },
+          {
+            "verse": 4,
+            "amp": "longing to see you, being mindful of your tears, so that I may be filled with joy.",
+            "kjv": "Greatly desiring to see thee, being mindful of thy tears, that I may be filled with joy;"
+          },
+          {
+            "verse": 5,
+            "amp": "I am reminded of the authentic faith that is in you, which first dwelt in your grandmother Lois and your mother Eunice, and I am persuaded is in you also.",
+            "kjv": "When I call to remembrance the unfeigned faith that is in thee, which dwelt first in thy grandmother Lois, and thy mother Eunice; and I am persuaded that in thee also."
+          },
+          {
+            "verse": 6,
+            "amp": "That is why I remind you to fan into flame the gracious gift of God, [that inner fire—the special endowment] which is in you through the laying on of my hands [with their prophetic declarations].",
+            "kjv": "Wherefore I put thee in remembrance that thou stir up the gift of God, which is in thee by the putting on of my hands."
+          },
+          {
+            "verse": 7,
+            "amp": "For God did not give us a spirit of timidity or cowardice or fear, but [He has given us a spirit] of power and of love and of sound judgment and personal discipline [abilities that result in a calm, well-balanced mind and self-control].",
+            "kjv": "For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind."
+          },
+          {
+            "verse": 8,
+            "amp": "So do not be ashamed of the testimony of our Lord or of me His prisoner, but join with me in suffering for the gospel according to the power of God [who saves us];",
+            "kjv": "Be not thou therefore ashamed of the testimony of our Lord, nor of me his prisoner: but be thou partaker of the afflictions of the gospel according to the power of God;"
+          },
+          {
+            "verse": 9,
+            "amp": "for He saved us and called us with a holy calling, not according to our works, but according to His own purpose and grace which was granted to us in Christ Jesus from all eternity.",
+            "kjv": "Who hath saved us, and called us with an holy calling, not according to our works, but according to his own purpose and grace, which was given us in Christ Jesus before the world began,"
+          },
+          {
+            "verse": 10,
+            "amp": "and has now been revealed by the appearing of our Savior Christ Jesus, who abolished death and brought life and immortality to light through the gospel.",
+            "kjv": "But is now made manifest by the appearing of our Saviour Jesus Christ, who hath abolished death, and hath brought life and immortality to light through the gospel:"
+          },
+          {
+            "verse": 11,
+            "amp": "For this gospel I was appointed a herald and an apostle and a teacher.",
+            "kjv": "Whereunto I am appointed a preacher, and an apostle, and a teacher of the Gentiles."
+          },
+          {
+            "verse": 12,
+            "amp": "This is why I suffer as I do. Still, I am not ashamed; for I know whom I have believed and am convinced that He is able to guard until that day what has been entrusted to me.",
+            "kjv": "For the which cause I also suffer these things: nevertheless I am not ashamed: for I know whom I have believed, and am persuaded that he is able to keep that which I have committed unto him against that day."
+          },
+          {
+            "verse": 13,
+            "amp": "Hold fast and follow the pattern of sound doctrine and wholesome teachings which you have heard from me, in the faith and love which are in Christ Jesus.",
+            "kjv": "Hold fast the form of sound words, which thou hast heard of me, in faith and love which is in Christ Jesus."
+          },
+          {
+            "verse": 14,
+            "amp": "Carefully guard and protect [as a precious deposit] that excellent and priceless truth which has been entrusted to you by the Holy Spirit who dwells within us.",
+            "kjv": "That good thing which was committed unto thee keep by the Holy Ghost which dwelleth in us."
+          }
+        ],
+        "2": [
+          {
+            "verse": 1,
+            "amp": "So you, my son, be strong [constantly strengthened and empowered] in the grace that is [to be found only] in Christ Jesus.",
+            "kjv": "Thou therefore, my son, be strong in the grace that is in Christ Jesus."
+          },
+          {
+            "verse": 2,
+            "amp": "The things which you have heard from me in the presence of many witnesses, entrust to reliable and faithful men who will also be capable and qualified to teach others.",
+            "kjv": "And the things that thou hast heard of me among many witnesses, the same commit thou to faithful men, who shall be able to teach others also."
+          },
+          {
+            "verse": 3,
+            "amp": "Take your share of hardship as a good soldier of Christ Jesus.",
+            "kjv": "Thou therefore endure hardness, as a good soldier of Jesus Christ."
+          },
+          {
+            "verse": 4,
+            "amp": "No soldier in active service entangles himself in the affairs of civilian life, so that he may please the one who enlisted him.",
+            "kjv": "No man that warreth entangleth himself with the affairs of this life; that he may please him who hath chosen him to be a soldier."
+          },
+          {
+            "verse": 5,
+            "amp": "Also if anyone competes as an athlete, he is not crowned unless he competes according to the rules.",
+            "kjv": "And if a man also strive for masteries, yet is he not crowned, except he strive lawfully."
+          },
+          {
+            "verse": 15,
+            "amp": "Study and do your utmost to present yourself approved unto God, a workman that needeth not to be ashamed, accurately handling and skillfully teaching the word of truth.",
+            "kjv": "Study to shew thyself approved unto God, a workman that needeth not to be ashamed, rightly dividing the word of truth."
+          },
+          {
+            "verse": 19,
+            "amp": "Nevertheless, the firm foundation of God [which He has laid] stands firm and unshakable, bearing this seal: 'The Lord knows those who are His,' and, 'Let everyone who names the name of the Lord stand away from wickedness.'",
+            "kjv": "Nevertheless the foundation of God standeth sure, having this seal, The Lord knoweth them that are his. And, Let every one that nameth the name of Christ depart from iniquity."
+          },
+          {
+            "verse": 20,
+            "amp": "Now in a large house there are not only vessels and objects of gold and silver, but also vessels and objects of wood and of earthenware, and some are for honorable (noble, good) use and some for dishonorable (ignoble, common).",
+            "kjv": "But in a great house there are not only vessels of gold and of silver, but also of wood and of earth; and some to honour, and some to dishonour."
+          },
+          {
+            "verse": 21,
+            "amp": "Therefore, if anyone cleanses himself from these things [which are dishonorable—disobedient, sinful], he will be a vessel for honor, sanctified [set apart for a special purpose and made holy], useful to the Master, prepared for every good work.",
+            "kjv": "If a man therefore purge himself from these, he shall be a vessel unto honour, sanctified, and meet for the master's use, and prepared unto every good work."
+          },
+          {
+            "verse": 22,
+            "amp": "Run away from youthful lusts and pursue righteousness, faith, love, and peace with those who call on the Lord out of a pure heart.",
+            "kjv": "Flee also youthful lusts: but follow righteousness, faith, charity, peace, with them that call on the Lord out of a pure heart."
+          },
+          {
+            "verse": 24,
+            "amp": "The Lord's servant must not be quarrelsome, but kind to everyone [mild-tempered, preserving the bond of peace]; he must be a skilled teacher, patient and forbearing when wronged.",
+            "kjv": "And the servant of the Lord must not strive; but be gentle unto all men, apt to teach, patient,"
+          }
+        ],
+        "3": [
+          {
+            "verse": 1,
+            "amp": "But understand this: in the last days dangerous times [of great stress and trouble] will come [difficult days that will be hard to bear].",
+            "kjv": "This know also, that in the last days perilous times shall come."
+          },
+          {
+            "verse": 5,
+            "amp": "holding to a form of [outward] godliness (religion), although they have denied its power [for their conduct nullifies their claim of faith]. Avoid such people and keep far away from them.",
+            "kjv": "Having a form of godliness, but denying the power thereof: from such turn away."
+          },
+          {
+            "verse": 14,
+            "amp": "But as for you, continue in what you have learned and have firmly believed, knowing from whom you learned it.",
+            "kjv": "But continue thou in the things which thou hast learned and hast been assured of, knowing of whom thou hast learned them;"
+          },
+          {
+            "verse": 15,
+            "amp": "and how from childhood you have been acquainted with the sacred scriptures, which are able to make you wise for salvation through faith in Christ Jesus.",
+            "kjv": "And that from a child thou hast known the holy scriptures, which are able to make thee wise unto salvation through faith which is in Christ Jesus."
+          },
+          {
+            "verse": 16,
+            "amp": "All Scripture is God-breathed [given by divine inspiration] and is profitable for instruction, for conviction [of sin], for correction [of error and restoration to obedience], for training in righteousness [learning to live in conformity to God's will];",
+            "kjv": "All scripture is given by inspiration of God, and is profitable for doctrine, for reproof, for correction, for instruction in righteousness:"
+          },
+          {
+            "verse": 17,
+            "amp": "so that the man of God may be complete and proficient, outfitted and thoroughly equipped for every good work.",
+            "kjv": "That the man of God may be perfect, throughly furnished unto all good works."
+          }
+        ],
+        "4": [
+          {
+            "verse": 1,
+            "amp": "I solemnly charge you in the presence of God and of Christ Jesus, who is to judge the living and the dead, and by His appearing and His kingdom:",
+            "kjv": "I charge thee therefore before God, and the Lord Jesus Christ, who shall judge the quick and the dead at his appearing and his kingdom;"
+          },
+          {
+            "verse": 2,
+            "amp": "Preach the word [as an official messenger]; be ready in season and out of season [when convenient or inconvenient]; reprove, rebuke, and encourage, with great patience and careful instruction.",
+            "kjv": "Preach the word; be instant in season, out of season; reprove, rebuke, exhort with all long suffering and doctrine."
+          },
+          {
+            "verse": 5,
+            "amp": "As for you, be calm and sober-minded in all situations, endure suffering, do the work of an evangelist, discharge fully all the duties of your ministry.",
+            "kjv": "But watch thou in all things, endure afflictions, do the work of an evangelist, make full proof of thy ministry."
+          },
+          {
+            "verse": 7,
+            "amp": "I have fought the good [worthy, honorable] fight, I have finished the race, I have kept the faith [firmly guarding the gospel].",
+            "kjv": "I have fought a good fight, I have finished my course, I have kept the faith:"
+          },
+          {
+            "verse": 8,
+            "amp": "Now there is in store for me the crown of righteousness, which the Lord, the righteous Judge, will award to me on that day—and not only to me, but also to all who have loved His appearing.",
+            "kjv": "Henceforth there is laid up for me a crown of righteousness, which the Lord, the righteous judge, shall give me at that day: and not to me only, but unto all them also that love his appearing."
+          }
+        ]
+      }
+    },
+    "eph": {
+      "name": "Ephesians",
+      "chapters": {
+        "4": [
+          {
+            "verse": 1,
+            "amp": "Therefore I, the prisoner of the Lord, urge you to walk in a manner worthy of the calling with which you have been called [with lives that exhibit your godly character];",
+            "kjv": "I therefore, the prisoner of the Lord, beseech you that ye walk worthy of the vocation wherewith ye are called,"
+          },
+          {
+            "verse": 11,
+            "amp": "And His gifts were [varied; He Himself appointed and gave men to us] some to be apostles (special messengers), some prophets (inspired preachers and expounders), some evangelists (preachers of the Gospel, traveling missionaries), some pastors (shepherds of His flock) and teachers.",
+            "kjv": "And he gave some, apostles; and some, prophets; and some, evangelists; and some, pastors and teachers;"
+          },
+          {
+            "verse": 12,
+            "amp": "His intention was the perfecting and the full equipping of the saints (His consecrated people), [that they should do] the work of ministering toward building up Christ's body (the church),",
+            "kjv": "For the perfecting of the saints, for the work of the ministry, for the edifying of the body of Christ:"
+          },
+          {
+            "verse": 13,
+            "amp": "until we all attain oneness in the faith and in the comprehension of the full knowledge of the Son of God, that [we might arrive] at really mature manhood [the completeness of personality], even to the measure of the stature of the fullness of the Christ.",
+            "kjv": "Till we all come in the unity of the faith, and of the knowledge of the Son of God, unto a perfect man, unto the measure of the stature of the fulness of Christ:"
+          },
+          {
+            "verse": 14,
+            "amp": "So then, we may no longer be children, tossed [like ships] on the waves and carried about with every wind of doctrine, by the cunning and trickery of men who use craftiness in deceitful schemes;",
+            "kjv": "That we henceforth be no more children, tossed to and fro, and carried about with every wind of doctrine, by the sleight of men, and cunning craftiness, whereby they lie in wait to deceive;"
+          },
+          {
+            "verse": 15,
+            "amp": "Rather, let our lives lovingly express truth [in all things, speaking truly, dealing truly, living truly]. Enfolded in love, let us grow up in every way and in all things into Him Who is the Head, [even] Christ (the Messiah, the Anointed One).",
+            "kjv": "But speaking the truth in love, may grow up into him in all things, which is the head, even Christ:"
+          },
+          {
+            "verse": 16,
+            "amp": "For because of Him the whole body (the church, in all its various parts), closely joined and firmly knit together by the joints and ligaments with which it is supplied, when each part is working properly, grows and edifies itself in love.",
+            "kjv": "From whom the whole body fitly joined together and compacted by that which every joint supplieth, according to the effectual working in the measure of every part, maketh increase of the body unto the edifying of itself in love."
+          }
+        ],
+        "6": [
+          {
+            "verse": 10,
+            "amp": "In conclusion, be strong in the Lord [be empowered through your union with Him]; draw your strength from Him [that strength which His boundless might provides].",
+            "kjv": "Finally, my brethren, be strong in the Lord, and in the power of his might."
+          },
+          {
+            "verse": 11,
+            "amp": "Put on God's whole armor [the heavy armor of a heavy-armed soldier which God supplies], that you may be able successfully to stand up against [all] the strategies and the deceits of the devil.",
+            "kjv": "Put on the whole armour of God, that ye may be able to stand against the wiles of the devil."
+          },
+          {
+            "verse": 12,
+            "amp": "For we are not wrestling with flesh and blood [contending only with physical opponents], but against the despotisms, against the powers, against [the master spirits who are] the world rulers of this present darkness, against the spirit forces of wickedness in the heavenly (supernatural) sphere.",
+            "kjv": "For we wrestle not against flesh and blood, but against principalities, against powers, against the rulers of the darkness of this world, against spiritual wickedness in high places."
+          },
+          {
+            "verse": 13,
+            "amp": "Therefore put on the complete armor of God, so that you may be able to [successfully] resist and stand your ground in the evil day [of danger], and having done everything [that the crisis demands], to stand firm [in your place, fully prepared, immovable, victorious].",
+            "kjv": "Wherefore take unto you the whole armour of God, that ye may be able to withstand in the evil day, and having done all, to stand."
+          },
+          {
+            "verse": 14,
+            "amp": "Stand therefore [hold your ground], having tightened the belt of truth around your loins and having put on the breastplate of integrity and of moral rectitude and right standing with God,",
+            "kjv": "Stand therefore, having your loins girt about with truth, and having on the breastplate of righteousness;"
+          },
+          {
+            "verse": 17,
+            "amp": "And take the helmet of salvation and the sword that the Spirit wields, which is the Word of God.",
+            "kjv": "And take the helmet of salvation, and the sword of the Spirit, which is the word of God:"
+          },
+          {
+            "verse": 18,
+            "amp": "Pray at all times (on every occasion, in every season) in the Spirit, with all [manner of] prayer and entreaty. To that end keep alert and watch with strong purpose and perseverance, interceding in behalf of all the saints (God's consecrated people).",
+            "kjv": "Praying always with all prayer and supplication in the Spirit, and watching thereunto with all perseverance and supplication for all saints;"
+          }
+        ]
+      }
+    },
+    "rom": {
+      "name": "Romans",
+      "chapters": {
+        "8": [
+          {
+            "verse": 1,
+            "amp": "Therefore there is now no condemnation [no guilty verdict, no punishment] for those who are in Christ Jesus [who believe in Him as personal Savior and Lord].",
+            "kjv": "There is therefore now no condemnation to them which are in Christ Jesus, who walk not after the flesh, but after the Spirit."
+          },
+          {
+            "verse": 14,
+            "amp": "For all who are allowing themselves to be led by the Spirit of God are sons of God.",
+            "kjv": "For as many as are led by the Spirit of God, they are the sons of God."
+          },
+          {
+            "verse": 28,
+            "amp": "And we know [with great confidence] that God [who is deeply concerned about us] causes all things to work together as a plan for good for those who love God, to those who are called according to His plan and purpose.",
+            "kjv": "And we know that all things work together for good to them that love God, to them who are the called according to his purpose."
+          },
+          {
+            "verse": 31,
+            "amp": "What then shall we say to all these things? If God is for us, who can be [successful] against us?",
+            "kjv": "What shall we then say to these things? If God be for us, who can be against us?"
+          },
+          {
+            "verse": 37,
+            "amp": "Yet in all these things we are more than conquerors and gain an overwhelming victory through Him who loved us [so much that He died for us].",
+            "kjv": "Nay, in all these things we are more than conquerors through him that loved us."
+          }
+        ],
+        "12": [
+          {
+            "verse": 1,
+            "amp": "Therefore I urge you, brothers and sisters, by the mercies of God, to present your bodies [dedicating all of yourselves, set apart] as a living sacrifice, holy and well-pleasing to God, which is your rational (logical, intelligent) act of worship.",
+            "kjv": "I beseech you therefore, brethren, by the mercies of God, that ye present your bodies a living sacrifice, holy, acceptable unto God, which is your reasonable service."
+          },
+          {
+            "verse": 2,
+            "amp": "And do not be conformed to this world [any longer with its superficial values and customs], but be transformed and progressively changed [as you mature spiritually] by the renewing of your mind [focusing on godly values and ethical attitudes], so that you may prove [for yourselves] what the will of God is, that which is good and acceptable and perfect [in His plan and purpose for you].",
+            "kjv": "And be not conformed to this world: but be ye transformed by the renewing of your mind, that ye may prove what is that good, and acceptable, and perfect, will of God."
+          },
+          {
+            "verse": 6,
+            "amp": "Since we have gifts that differ according to the grace given to us, each of us is to use them accordingly: if [someone has the gift of] prophecy, [let him speak a new message from God to His people] in proportion to the faith possessed;",
+            "kjv": "Having then gifts differing according to the grace that is given to us, whether prophecy, let us prophesy according to the proportion of faith;"
+          }
+        ]
+      }
+    },
+    "psa": {
+      "name": "Psalms",
+      "chapters": {
+        "23": [
+          {
+            "verse": 1,
+            "amp": "The Lord is my Shepherd [to feed, to guide and to shield me]; I shall not lack.",
+            "kjv": "The LORD is my shepherd; I shall not want."
+          },
+          {
+            "verse": 2,
+            "amp": "He makes me lie down in [fresh, tender] green pastures; He leads me beside the still and restful waters.",
+            "kjv": "He maketh me to lie down in green pastures: he leadeth me beside the still waters."
+          },
+          {
+            "verse": 3,
+            "amp": "He refreshes and restores my life (my self); He leads me in the paths of righteousness [uprightness and right standing with Him—not for my earning it, but] for His name's sake.",
+            "kjv": "He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake."
+          },
+          {
+            "verse": 4,
+            "amp": "Yes, though I walk through the [deep, sunless] valley of the shadow of death, I will fear or dread no evil, for You are with me; Your rod [to protect] and Your staff [to guide], they comfort me.",
+            "kjv": "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me."
+          },
+          {
+            "verse": 5,
+            "amp": "You prepare a table before me in the presence of my enemies. You have anointed my head with oil; My cup runs over.",
+            "kjv": "Thou preparest a table before me in the presence of mine enemies: thou anointest my head with oil; my cup runneth over."
+          },
+          {
+            "verse": 6,
+            "amp": "Surely or only goodness, mercy, and unfailing love shall follow me all the days of my life, and through the length of my days the house of the Lord [and His presence] shall be my dwelling place.",
+            "kjv": "Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the LORD for ever."
+          }
+        ],
+        "91": [
+          {
+            "verse": 1,
+            "amp": "He who dwells in the shelter of the Most High Will remain secure and rest in the shadow of the Almighty [whose power no enemy can withstand].",
+            "kjv": "He that dwelleth in the secret place of the most High shall abide under the shadow of the Almighty."
+          },
+          {
+            "verse": 2,
+            "amp": "I will say of the Lord, 'He is my refuge and my fortress, My God, in whom I trust [with great confidence, and on whom I rely]!'",
+            "kjv": "I will say of the LORD, He is my refuge and my fortress: my God; in him will I trust."
+          },
+          {
+            "verse": 7,
+            "amp": "A thousand may fall at your side And ten thousand at your right hand, But danger will not come near you.",
+            "kjv": "A thousand shall fall at thy side, and ten thousand at thy right hand; but it shall not come nigh thee."
+          },
+          {
+            "verse": 11,
+            "amp": "For He will command His angels regarding you, To protect and safeguard you in all your ways [of obedience and service].",
+            "kjv": "For he shall give his angels charge over thee, to keep thee in all thy ways."
+          }
+        ]
+      }
+    },
+    "heb": {
+      "name": "Hebrews",
+      "chapters": {
+        "11": [
+          {
+            "verse": 1,
+            "amp": "Now faith is the assurance (title deed, confirmation) of things hoped for (divinely guaranteed), and the evidence of things not seen [the conviction of their reality—faith comprehends as fact what cannot be experienced by the physical senses].",
+            "kjv": "Now faith is the substance of things hoped for, the evidence of things not seen."
+          },
+          {
+            "verse": 6,
+            "amp": "But without faith it is impossible to [walk with God and] please Him, for whoever comes [near] to God must [necessarily] believe that God exists and that He rewards those who [earnestly and diligently] seek Him.",
+            "kjv": "But without faith it is impossible to please him: for he that cometh to God must believe that he is, and that he is a rewarder of them that diligently seek him."
+          }
+        ],
+        "13": [
+          {
+            "verse": 7,
+            "amp": "Remember your leaders [for it was they] who brought you the word of God; and consider the result of their conduct, and imitate their faith [their devotion to Christ, their conviction of the truth, their obedience to God's will].",
+            "kjv": "Remember them which have the rule over you, who have spoken unto you the word of God: whose faith follow, considering the end of their conversation."
+          },
+          {
+            "verse": 8,
+            "amp": "Jesus Christ is [eternally changeless, always] the same yesterday and today and forever.",
+            "kjv": "Jesus Christ the same yesterday, and to day, and for ever."
+          }
+        ]
+      }
+    },
+    "mat": {
+      "name": "Matthew",
+      "chapters": {
+        "28": [
+          {
+            "verse": 18,
+            "amp": "Jesus came up and said to them, 'All authority (all power of absolute rule) in heaven and on earth has been given to Me.'",
+            "kjv": "And Jesus came and spake unto them, saying, All power is given unto me in heaven and in earth."
+          },
+          {
+            "verse": 19,
+            "amp": "Go therefore and make disciples of all the nations [help the people to learn of Me, believe in Me, and obey My words], baptizing them in the name of the Father and of the Son and of the Holy Spirit,",
+            "kjv": "Go ye therefore, and teach all nations, baptizing them in the name of the Father, and of the Son, and of the Holy Ghost:"
+          },
+          {
+            "verse": 20,
+            "amp": "teaching them to observe everything that I have commanded you; and lo, I am with you always [remaining with you perpetually—regardless of circumstance, and on every occasion], even to the end of the age.'",
+            "kjv": "Teaching them to observe all things whatsoever I have commanded you: and, lo, I am with you alway, even unto the end of the world. Amen."
+          }
+        ]
+      }
+    },
+    "pro": {
+      "name": "Proverbs",
+      "chapters": {
+        "3": [
+          {
+            "verse": 5,
+            "amp": "Trust in and rely confidently on the Lord with all your heart And do not rely on your own insight or understanding.",
+            "kjv": "Trust in the LORD with all thine heart; and lean not unto thine own understanding."
+          },
+          {
+            "verse": 6,
+            "amp": "In all your ways know and acknowledge and recognize Him, And He will make your paths straight and smooth [removing obstacles that block your way].",
+            "kjv": "In all thy ways acknowledge him, and he shall direct thy paths."
+          }
+        ]
+      }
+    }
+  }
+}

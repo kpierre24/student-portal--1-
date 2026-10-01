@@ -1,0 +1,66 @@
+{
+  "short_name": "HTEIM ERP",
+  "name": "HTEIM School of Ministry ERP & Mobile Student Portal",
+  "description": "Official Academic Ministry Portal, Mobile Attendance Tracker & Financial Tuition Management System powered by Rockproxy Technologies.",
+  "icons": [
+    {
+      "src": "/hteim_logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/hteim_logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/hteim_logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/hteim_logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": ["education", "productivity", "management"],
+  "shortcuts": [
+    {
+      "name": "Attendance Check-In",
+      "short_name": "Check-In",
+      "description": "Quick mobile student check-in",
+      "url": "/?tab=home"
+    },
+    {
+      "name": "Student Roster",
+      "short_name": "Students",
+      "description": "View student directory & grades",
+      "url": "/?tab=students"
+    },
+    {
+      "name": "Download Android APK",
+      "short_name": "APK Download",
+      "description": "Download Android APK app installer",
+      "url": "/?modal=apk"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=org.hteim.ministry.erp",
+      "id": "org.hteim.ministry.erp"
+    }
+  ],
+  "prefer_related_applications": false
+}
