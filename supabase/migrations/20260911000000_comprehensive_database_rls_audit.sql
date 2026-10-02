@@ -698,9 +698,7 @@ CREATE POLICY "notifications_select_policy" ON public.notifications
   USING (
     public.is_staff()
     OR recipient_user_id = auth.uid()
-    OR user_id = auth.uid()
     OR recipient_student_id = public.get_current_student_id()
-    OR student_id = public.get_current_student_id()
     OR recipient_email = (auth.jwt() ->> 'email')
     OR recipient_role IN ('all', public.get_auth_user_role())
   );
@@ -718,13 +716,11 @@ CREATE POLICY "notifications_update_policy" ON public.notifications
   USING (
     public.is_staff()
     OR recipient_user_id = auth.uid()
-    OR user_id = auth.uid()
     OR recipient_student_id = public.get_current_student_id()
   )
   WITH CHECK (
     public.is_staff()
     OR recipient_user_id = auth.uid()
-    OR user_id = auth.uid()
     OR recipient_student_id = public.get_current_student_id()
   );
 
@@ -733,7 +729,6 @@ CREATE POLICY "notifications_delete_policy" ON public.notifications
   USING (
     public.is_admin()
     OR recipient_user_id = auth.uid()
-    OR user_id = auth.uid()
     OR recipient_student_id = public.get_current_student_id()
   );
 
@@ -746,7 +741,14 @@ BEGIN
 
     CREATE POLICY "notification_delivery_logs_policy" ON public.notification_delivery_logs
       FOR SELECT TO authenticated
-      USING (public.is_staff() OR user_id = auth.uid());
+      USING (
+        public.is_staff()
+        OR EXISTS (
+          SELECT 1 FROM public.notifications n
+          WHERE n.id = notification_delivery_logs.notification_id
+            AND (n.recipient_user_id = auth.uid() OR n.recipient_student_id = public.get_current_student_id())
+        )
+      );
 
     CREATE POLICY "notification_delivery_logs_insert" ON public.notification_delivery_logs
       FOR INSERT TO authenticated

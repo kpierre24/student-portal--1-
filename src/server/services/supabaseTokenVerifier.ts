@@ -99,12 +99,12 @@ export async function verifyAuthToken(rawToken: string): Promise<VerifiedAuthTok
         };
       }
     } catch (jwtErr: any) {
-      logger.warn(`Cryptographic JWT signature verification failed: ${jwtErr.message}`);
+      logger.debug(`Cryptographic JWT signature verification check notice: ${jwtErr.message}`);
       throw new Error(`Invalid authentication token: ${jwtErr.message}`);
     }
   }
 
   // If Supabase is not configured and no JWT secret is present, reject the unverified token
-  logger.warn(`Authoritative token verification failed for token prefix: ${token.substring(0, 10)}...`);
+  logger.debug(`Authoritative token verification check notice for token prefix: ${token.substring(0, 10)}...`);
   throw new Error('Invalid authentication token: Cryptographic signature verification failed');
 }

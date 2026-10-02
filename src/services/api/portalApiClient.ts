@@ -65,29 +65,10 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
         if (savedUser) {
           const headers = getAuthHeaders(savedUser);
           Object.assign(authHeaders, headers);
-          if (savedUser.email) {
-            authHeaders['Authorization'] = `Bearer ${btoa(JSON.stringify(savedUser))}`;
-          }
         }
       }
     } catch {
       // Non-blocking
-    }
-  }
-
-  // Ensure default authorized session for faculty/admin context if still unattached
-  if (!authHeaders['Authorization']) {
-    const defaultFacultySession = {
-      email: 'kpierre24@gmail.com',
-      role: 'admin',
-      name: 'Kendell Pierre'
-    };
-    try {
-      authHeaders['Authorization'] = `Bearer ${btoa(JSON.stringify(defaultFacultySession))}`;
-      authHeaders['x-user-email'] = defaultFacultySession.email;
-      authHeaders['x-user-role'] = defaultFacultySession.role;
-    } catch {
-      authHeaders['Authorization'] = 'Bearer kpierre24@gmail.com';
     }
   }
 

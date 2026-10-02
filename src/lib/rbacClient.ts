@@ -72,22 +72,5 @@ export function getAuthHeaders(appUser: AppUser | null | undefined): Record<stri
     headers['x-student-name'] = appUser.studentName || appUser.name;
   }
 
-  // Create standard bearer token representation
-  const tokenPayload = {
-    id: appUser.id,
-    email: appUser.email,
-    role: cleanRole,
-    studentRecordId: appUser.studentRecordId,
-    studentNumber: appUser.studentNumber,
-    studentId: appUser.studentRecordId || appUser.studentId,
-    studentName: appUser.studentName || appUser.name
-  };
-  try {
-    const b64 = btoa(JSON.stringify(tokenPayload));
-    headers['Authorization'] = `Bearer ${b64}`;
-  } catch {
-    headers['Authorization'] = `Bearer ${appUser.email}`;
-  }
-
   return headers;
 }

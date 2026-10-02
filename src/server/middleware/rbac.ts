@@ -266,7 +266,7 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
   try {
     decoded = await verifyIdToken(token);
   } catch (err: any) {
-    logger.warn(`Authoritative token verification failed for ${req.path}: ${err.message || err}`);
+    logger.debug(`Authoritative token verification notice for ${req.path}: ${err.message || err}`);
     return null;
   }
 
