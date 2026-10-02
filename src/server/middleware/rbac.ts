@@ -255,41 +255,19 @@ export async function resolveUserFromRequest(req: Request): Promise<Authenticate
     }
   }
 
-  if (!token || token === "null" || token === "undefined") {
-    const emailHeader = (req.headers["x-user-email"] as string) || (req.headers["x-user-id"] as string);
-    if (emailHeader && typeof emailHeader === "string" && emailHeader.includes("@")) {
-      token = emailHeader.trim();
-    }
-  }
-
-  if (!token || token === "null" || token === "undefined") {
-    const qEmail = (req.query.userEmail as string) || (req.query.email as string);
-    if (qEmail && typeof qEmail === "string" && qEmail.includes("@")) {
-      token = qEmail.trim();
-    }
-  }
-
+  // Strictly enforce that authentication comes from Authorization: Bearer <token> ONLY.
+  // Query parameters (?email, ?userEmail) and headers (x-user-email, x-user-id) are NOT authentication sources.
   if (!token || token === "null" || token === "undefined") {
     return null;
   }
 
-  // 1. Firebase ID Token / Session Token -> verifyIdToken()
+  // 1. Authoritative Token Verification -> verifyIdToken()
   let decoded;
   try {
     decoded = await verifyIdToken(token);
   } catch (err: any) {
-    logger.warn(`Authoritative token verification fallback for ${req.path}: ${err.message || err}`);
-    // If an explicit token was provided in Authorization header and failed, reject authentication
-    if (authHeader && (authHeader.startsWith("Bearer ") || authHeader.length > 20)) {
-      return null;
-    }
-    decoded = {
-      uid: "usr_kpierre24_gmail_com",
-      email: "kpierre24@gmail.com",
-      name: "Kendell Pierre",
-      role: "admin",
-      emailVerified: true,
-    };
+    logger.warn(`Authoritative token verification failed for ${req.path}: ${err.message || err}`);
+    return null;
   }
 
   if (!decoded || !decoded.uid) {

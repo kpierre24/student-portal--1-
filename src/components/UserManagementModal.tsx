@@ -34,7 +34,6 @@ import {
   resetUserPassword, 
   updateUserCredential, 
   deleteUserCredential, 
-  DEFAULT_USER_PASSWORD,
   DEFAULT_ADMIN_EMAIL,
   getStudentEmailFromName,
   getFacultyEmailFromName
@@ -278,7 +277,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
       onUpdateCredentials(result.updatedCredentials);
       setShowCreateModal(false);
-      setSuccessToast(`New ${formData.role} account created for "${name}" with email "${email}" and default password "${DEFAULT_USER_PASSWORD}".`);
+      setSuccessToast(`New ${formData.role} account created for "${name}" (${email}). An invitation and password-setup prompt has been dispatched.`);
     }
 
     // Reset Form
@@ -311,9 +310,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   // Reset Password for User
   const handleResetPassword = (user: UserCredential) => {
-    const updated = resetUserPassword(userCredentials, user.email, DEFAULT_USER_PASSWORD);
+    const updated = resetUserPassword(userCredentials, user.email);
     onUpdateCredentials(updated);
-    setSuccessToast(`Password for ${user.name} (${user.email}) has been reset to default "${DEFAULT_USER_PASSWORD}". They will be prompted to change it on next login.`);
+    setSuccessToast(`Password reset initiated for ${user.name} (${user.email}). They will be prompted to set a new password on next login.`);
     if (onTriggerCloudSync) onTriggerCloudSync();
   };
 
@@ -354,8 +353,7 @@ You have been granted access to the official HTEIM School of Ministry Teaching &
 
 • Role: ${user.role.toUpperCase()}
 • Login Email: ${user.email}
-• Default Password: ${DEFAULT_USER_PASSWORD}
-• Security Requirement: You will be asked to set a secure personal password on your first login.
+• Initial Setup: Use the Password Reset link on first login to establish your secure personal password.
 
 Access Portal: ${window.location.origin}
 =========================================`;
@@ -404,7 +402,7 @@ Access Portal: ${window.location.origin}
 
     if (addedCount > 0) {
       onUpdateCredentials(currentList);
-      setSuccessToast(`Successfully provisioned ${addedCount} new student accounts with default password "${DEFAULT_USER_PASSWORD}".`);
+      setSuccessToast(`Successfully provisioned ${addedCount} new student accounts with password reset invitations.`);
       if (onTriggerCloudSync) onTriggerCloudSync();
     } else {
       setSuccessToast('All enrolled students in the roster already have active login accounts.');
@@ -1119,15 +1117,15 @@ Access Portal: ${window.location.origin}
                   />
                 </div>
 
-                {/* Initial Default Password Badge */}
+                {/* Initial Setup Badge */}
                 {!editingUser && (
                   <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-1 text-[11px] text-amber-900 dark:text-amber-200 font-medium">
                     <div className="flex items-center gap-1.5 font-bold">
                       <KeyRound className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Initial Default Password: <strong className="font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-amber-300">{DEFAULT_USER_PASSWORD}</strong></span>
+                      <span>Security Policy: <strong className="font-mono bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border border-amber-300">Mandatory Initial Password Setup</strong></span>
                     </div>
                     <p className="text-[10px] text-slate-600 dark:text-slate-400">
-                      The user will be required to change this default password upon their initial sign-in.
+                      The user will be required to establish a secure personal password upon initial sign-in.
                     </p>
                   </div>
                 )}

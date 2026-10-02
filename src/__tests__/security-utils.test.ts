@@ -178,7 +178,7 @@ describe('userAuth', () => {
       expect(updatedCredentials.some(c => c.role === 'teacher')).toBe(true);
     });
 
-    it('should generate student credentials from names with default password1', () => {
+    it('should generate student credentials from names with secure temporary password', () => {
       const { updatedCredentials, changed } = ensureUserCredentials([], ['Alex Burke', 'Jordan Smith']);
       expect(changed).toBe(true);
       const studentEmails = updatedCredentials.filter(c => c.role === 'student').map(c => c.email);
@@ -188,12 +188,12 @@ describe('userAuth', () => {
   });
 
   describe('resetUserPassword', () => {
-    it('should reset password to default password1 and require change', () => {
+    it('should reset password and require change on next login', () => {
       const credentials: UserCredential[] = [
         { id: 'u-1', email: 'aburke@student.hteim.edu', username: 'ABurke', name: 'Alex Burke', role: 'student', passwordHash: 'customSecret123', mustChangePassword: false, status: 'active', createdAt: '2026-01-01' }
       ];
       const updated = resetUserPassword(credentials, 'aburke@student.hteim.edu');
-      expect(updated[0].passwordHash).toBe('password1');
+      expect(updated[0].passwordHash).toBeTruthy();
       expect(updated[0].mustChangePassword).toBe(true);
     });
   });

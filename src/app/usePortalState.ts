@@ -21,7 +21,7 @@ import {
   UserRole,
   getDefaultLevelForStudent
 } from '../types';
-import { AppUser, generateStudentUsername, UserCredential, DEFAULT_USER_PASSWORD, isMatchingCredential, mergeUserCredentials } from '../lib/userAuth';
+import { AppUser, generateStudentUsername, UserCredential, isMatchingCredential, mergeUserCredentials } from '../lib/userAuth';
 import { INITIAL_COURSES, INITIAL_ASSIGNMENTS, INITIAL_SUBMISSIONS, INITIAL_SCHEDULE, INITIAL_RESOURCES, INITIAL_PAYMENTS, INITIAL_MESSAGES } from '../data/initialPortalData';
 import { DEFAULT_FACULTY_TEACHERS } from '../components/HomeTab';
 import { DEFAULT_PRESET_MEDIA } from '../components/ClassroomMediaPlayer';
@@ -74,23 +74,13 @@ export function usePortalState() {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
 
   // Dynamic User Credentials State
-  const [userCredentials, setUserCredentials] = useState<UserCredential[]>(() => {
-    try {
-      const saved = localStorage.getItem('hteim_user_credentials');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.warn("Failed loading user credentials from local storage:", e);
-    }
-    return [];
-  });
+  const [userCredentials, setUserCredentials] = useState<UserCredential[]>([]);
 
   // Clear legacy auth session remnants
   useEffect(() => {
     try {
       localStorage.removeItem('hteim_app_user');
+      localStorage.removeItem('hteim_user_credentials');
       sessionStorage.removeItem('hteim_app_user');
       sessionStorage.removeItem('hteim_user_credentials');
     } catch (e) {}
@@ -1202,13 +1192,7 @@ export function usePortalState() {
           if (cloudState.zoomExceptionNote !== undefined) setZoomExceptionNote(cloudState.zoomExceptionNote);
           if (cloudState.hasZoomException !== undefined) setHasZoomException(cloudState.hasZoomException);
           if (cloudState.userCredentials !== undefined && Array.isArray(cloudState.userCredentials) && cloudState.userCredentials.length > 0) {
-            setUserCredentials(prev => {
-              const merged = mergeUserCredentials(prev, cloudState.userCredentials);
-              try {
-                localStorage.setItem('hteim_user_credentials', JSON.stringify(merged));
-              } catch (e) {}
-              return merged;
-            });
+            setUserCredentials(prev => mergeUserCredentials(prev, cloudState.userCredentials));
           }
           if (Array.isArray(cloudState.facultyTeachers) && cloudState.facultyTeachers.length > 0) {
             setFacultyTeachers(cloudState.facultyTeachers);
@@ -2395,9 +2379,6 @@ export function usePortalState() {
     },
     handleUpdateUserCredentials: async (updatedCreds: UserCredential[]) => {
       setUserCredentials(updatedCreds);
-      try {
-        localStorage.setItem('hteim_user_credentials', JSON.stringify(updatedCreds));
-      } catch (e) {}
       
       try {
         const activeEmail = appUser?.email || user?.email;

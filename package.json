@@ -15,6 +15,7 @@
     "db:health": "node scripts/maintenance/db-health-check.cjs",
     "db:seed": "node scripts/seed/seed-academic-data.cjs",
     "db:validate-constraints": "node scripts/ci/validate-constraints.cjs",
+    "db:audit-rls": "node scripts/security/audit-database-rls.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

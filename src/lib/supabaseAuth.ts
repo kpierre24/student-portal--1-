@@ -7,11 +7,8 @@ import {
   getStudentEmailFromName, 
   isMatchingCredential, 
   mergeUserCredentials, 
-  isDefaultPassword,
-  isDefaultPasswordInput,
   DEFAULT_ADMIN_EMAIL, 
-  DEFAULT_ADMIN_NAME, 
-  DEFAULT_USER_PASSWORD 
+  DEFAULT_ADMIN_NAME
 } from './userAuth';
 import { loadFromSupabase, saveToSupabase } from './supabaseSync';
 import { logger } from './logger';
@@ -34,8 +31,8 @@ export interface AuthVerificationResult {
 }
 
 /**
- * Authenticates a user strictly through Supabase verification.
- * Does NOT persist any tokens, passwords, or session objects in localStorage.
+ * Authenticates a user strictly through Supabase Auth and authoritative cloud verification.
+ * Does NOT persist passwords or credential databases in browser localStorage.
  */
 export async function authenticateWithSupabase(
   identifierInput: string,
@@ -73,18 +70,7 @@ export async function authenticateWithSupabase(
 
   let verifiedCredentials: UserCredential[] = memoryCredentials && memoryCredentials.length > 0 ? memoryCredentials : [];
 
-  // Attempt loading from local storage cache
-  try {
-    const saved = localStorage.getItem('hteim_user_credentials');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        verifiedCredentials = mergeUserCredentials(verifiedCredentials, parsed);
-      }
-    }
-  } catch (e) {}
-
-  // 1. First, attempt Supabase Auth direct verification if it's a valid email format
+  // 1. Primary: Authenticate with Supabase Auth API
   let supabaseAuthUser: any = null;
   if (cleanId.includes('@')) {
     try {
@@ -103,7 +89,7 @@ export async function authenticateWithSupabase(
     }
   }
 
-  // 2. Fetch authoritative user credentials registry from Supabase
+  // 2. Fetch authoritative user credentials registry from Supabase cloud database
   try {
     const cloudState = await loadFromSupabase(undefined);
     if (cloudState && Array.isArray(cloudState.userCredentials) && cloudState.userCredentials.length > 0) {
@@ -117,12 +103,8 @@ export async function authenticateWithSupabase(
   if (supabaseAuthUser) {
     const matchedCred = verifiedCredentials.find(c => isMatchingCredential(c, cleanId));
 
-    const role: UserRole = matchedCred?.role || (cleanId === DEFAULT_ADMIN_EMAIL.toLowerCase() ? 'admin' : 'student');
-    const name = matchedCred?.name || supabaseAuthUser.user_metadata?.full_name || supabaseAuthUser.email?.split('@')[0] || 'User';
-
-    const mustChange = matchedCred?.mustChangePassword === false
-      ? isDefaultPassword(matchedCred?.passwordHash)
-      : (matchedCred?.mustChangePassword === true || isDefaultPassword(matchedCred?.passwordHash));
+    const role: UserRole = (supabaseAuthUser.app_metadata?.role || supabaseAuthUser.user_metadata?.role || matchedCred?.role || (cleanId === DEFAULT_ADMIN_EMAIL.toLowerCase() ? 'admin' : 'student')) as UserRole;
+    const name = matchedCred?.name || supabaseAuthUser.user_metadata?.full_name || supabaseAuthUser.user_metadata?.name || supabaseAuthUser.email?.split('@')[0] || 'User';
 
     const user: AppUser = {
       id: supabaseAuthUser.id || matchedCred?.id || `u-${Date.now()}`,
@@ -133,13 +115,13 @@ export async function authenticateWithSupabase(
       studentName: matchedCred?.studentName || (role === 'student' ? name : undefined),
       moduleOrDepartment: matchedCred?.moduleOrDepartment,
       status: matchedCred?.status || 'active',
-      mustChangePassword: role === 'admin' ? false : mustChange
+      mustChangePassword: false
     };
 
     return {
       success: true,
       user,
-      mustChangePassword: role === 'admin' ? false : mustChange,
+      mustChangePassword: false,
       cloudSynced: true
     };
   }
@@ -155,18 +137,9 @@ export async function authenticateWithSupabase(
       };
     }
 
-    const mustChange = cred.mustChangePassword === false
-      ? isDefaultPassword(cred.passwordHash)
-      : (cred.mustChangePassword === true || isDefaultPassword(cred.passwordHash));
-    const isDefaultInput = isDefaultPasswordInput(cleanPassword);
-    const isAdminAccount = cred.role === 'admin' || cred.role === 'super_admin' || cleanId === DEFAULT_ADMIN_EMAIL.toLowerCase() || cleanId === 'admin';
-
     const isPasswordValid =
       cred.passwordHash === cleanPassword ||
-      (await verifyPasswordHash(cleanPassword, cred.passwordHash)) ||
-      (isDefaultInput && mustChange) ||
-      (isDefaultInput && isDefaultPassword(cred.passwordHash)) ||
-      (isAdminAccount && (cleanPassword === DEFAULT_USER_PASSWORD || isDefaultInput));
+      (await verifyPasswordHash(cleanPassword, cred.passwordHash));
 
     if (isPasswordValid) {
       clearFailedLoginAttempts(cleanId);
@@ -181,13 +154,13 @@ export async function authenticateWithSupabase(
         studentName: cred.studentName || (cred.role === 'student' ? cred.name : undefined),
         moduleOrDepartment: cred.moduleOrDepartment,
         status: cred.status,
-        mustChangePassword: isAdminAccount ? false : mustChange
+        mustChangePassword: cred.mustChangePassword ?? false
       };
 
       return {
         success: true,
         user,
-        mustChangePassword: isAdminAccount ? false : mustChange,
+        mustChangePassword: cred.mustChangePassword ?? false,
         cloudSynced: true
       };
     } else {
@@ -204,59 +177,38 @@ export async function authenticateWithSupabase(
     }
   }
 
-  // Admin fallback matching for default administrator
-  if (cleanId === 'admin' || cleanId === DEFAULT_ADMIN_EMAIL.toLowerCase() || cleanId === 'admin@hteim.edu') {
-    const adminUser = verifiedCredentials.find(c => c && (c.role === 'admin' || c.role === 'super_admin'));
-    const isDefaultInput = isDefaultPasswordInput(cleanPassword);
-    if (adminUser) {
-      const adminMustChange = adminUser.mustChangePassword === false
-        ? isDefaultPassword(adminUser.passwordHash)
-        : (adminUser.mustChangePassword === true || isDefaultPassword(adminUser.passwordHash));
-      if (
-        adminUser.passwordHash === cleanPassword ||
-        cleanPassword === DEFAULT_USER_PASSWORD ||
-        isDefaultInput ||
-        (cleanPassword === DEFAULT_USER_PASSWORD && adminMustChange)
-      ) {
-        return {
-          success: true,
-          user: {
-            id: adminUser.id || 'u-admin-kpierre',
-            email: adminUser.email || DEFAULT_ADMIN_EMAIL,
-            username: adminUser.username || 'admin',
-            name: adminUser.name || DEFAULT_ADMIN_NAME,
-            role: 'admin',
-            status: 'active',
-            mustChangePassword: false
-          },
-          mustChangePassword: false,
-          cloudSynced: true
-        };
-      }
-    } else {
-      if (cleanPassword === DEFAULT_USER_PASSWORD || isDefaultInput) {
-        return {
-          success: true,
-          user: {
-            id: 'u-admin-kpierre',
-            email: DEFAULT_ADMIN_EMAIL,
-            username: 'admin',
-            name: DEFAULT_ADMIN_NAME,
-            role: 'admin',
-            status: 'active',
-            mustChangePassword: false
-          },
-          mustChangePassword: false,
-          cloudSynced: true
-        };
-      }
-    }
-  }
-
   return {
     success: false,
-    error: `Account with email or ID "${identifierInput}" was not verified in Supabase registry. Please verify your credentials.`
+    error: `Account with email "${identifierInput}" was not found or credentials were invalid.`
   };
+}
+
+/**
+ * Sends a Supabase Auth password reset recovery email to the given address.
+ */
+export async function requestPasswordResetForEmail(
+  email: string,
+  _userCredentials?: UserCredential[]
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    return { success: false, error: 'Please provide a valid email address.', message: 'Please provide a valid email address.' };
+  }
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/#type=recovery` : undefined,
+    });
+    if (error) {
+      logger.warn('Password reset request error:', error.message);
+      return { success: false, error: error.message, message: error.message };
+    }
+    const msg = `Password recovery instructions dispatched to ${cleanEmail}. Check your inbox.`;
+    return { success: true, message: msg };
+  } catch (err: any) {
+    logger.error('Unexpected error requesting password reset:', err);
+    return { success: false, error: err?.message || 'Failed to send recovery email.', message: 'Failed to send recovery email.' };
+  }
 }
 
 /**
@@ -269,9 +221,9 @@ export async function supabaseLogout(): Promise<void> {
     handleError(err, 'supabaseLogout - signOut failure', 'authentication');
   }
 
-  // Ensure active user session state is cleared without wiping the persistent credentials registry
   try {
     localStorage.removeItem('hteim_app_user');
+    localStorage.removeItem('hteim_user_credentials');
     sessionStorage.removeItem('hteim_app_user');
     sessionStorage.removeItem('hteim_user_credentials');
   } catch (e) {
@@ -292,17 +244,14 @@ export async function updatePasswordInSupabase(
     return { success: false, updatedCredentials: currentCredentials || [] };
   }
 
-  // 1. Update in-memory & local copy
-  let baseCreds = currentCredentials && currentCredentials.length > 0 ? [...currentCredentials] : [];
+  // Update through Supabase Auth if session active
   try {
-    const saved = localStorage.getItem('hteim_user_credentials');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        baseCreds = mergeUserCredentials(baseCreds, parsed);
-      }
-    }
-  } catch (e) {}
+    await supabase.auth.updateUser({ password: cleanPass });
+  } catch (sbErr) {
+    logger.debug('Non-blocking Supabase auth update attempt:', sbErr);
+  }
+
+  let baseCreds = currentCredentials && currentCredentials.length > 0 ? [...currentCredentials] : [];
 
   let updatedCredentials = baseCreds.map(cred => {
     if (isMatchingCredential(cred, identifier)) {
@@ -316,12 +265,7 @@ export async function updatePasswordInSupabase(
     return cred;
   });
 
-  // Save to localStorage immediately
-  try {
-    localStorage.setItem('hteim_user_credentials', JSON.stringify(updatedCredentials));
-  } catch (e) {}
-
-  // 2. Persist updated user credentials directly to Supabase cloud
+  // Persist updated user credentials directly to Supabase cloud database
   try {
     const cloudState = await loadFromSupabase(undefined);
     if (cloudState) {
@@ -348,84 +292,5 @@ export async function updatePasswordInSupabase(
     handleError(err, 'updatePasswordInSupabase - cloud save failure', 'database');
   }
 
-  // 3. If Supabase Auth session is active, update password there too
-  try {
-    await supabase.auth.updateUser({ password: cleanPass });
-  } catch (e) {
-    // Non-blocking
-  }
-
-  return {
-    success: true,
-    updatedCredentials
-  };
-}
-
-/**
- * Requests a password reset for an account email across Supabase Auth and portal credentials.
- */
-export async function requestPasswordResetForEmail(
-  emailOrUsername: string,
-  userCredentialsList: UserCredential[] = []
-): Promise<{ success: boolean; message: string; userRole?: UserRole; email?: string }> {
-  const cleanId = (emailOrUsername || '').trim().toLowerCase();
-  if (!cleanId) {
-    return { success: false, message: 'Please provide a valid account email address or username.' };
-  }
-
-  // 1. Resolve to matching registered user (supports email or username alias like ABurke)
-  const match = userCredentialsList.find(c => 
-    c.email.toLowerCase() === cleanId || 
-    (c.username && c.username.toLowerCase() === cleanId)
-  );
-
-  const targetEmail = match?.email || (cleanId.includes('@') ? cleanId : null);
-
-  if (!targetEmail) {
-    return {
-      success: false,
-      message: `Could not identify an email address for username "${emailOrUsername}". Please enter your full registered email address.`
-    };
-  }
-
-  // 2. Determine redirect URL compatible with Vercel, custom domains, and local dev.
-  //    IMPORTANT: This URL must be whitelisted in Supabase Dashboard →
-  //    Authentication → URL Configuration → Redirect URLs.
-  //    Add: https://your-vercel-app.vercel.app/** (and any custom domains)
-  //    Set VITE_APP_URL in Vercel env vars to your production URL.
-  const appBase =
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_APP_URL) ||
-    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-  // Use /auth/callback so the path is easy to whitelist in Supabase (e.g. https://your-domain.com/**)
-  // Supabase appends its own tokens as a hash fragment; we add type=recovery as a query param
-  // so AppRouter can detect the recovery flow on load.
-  const redirectTo = `${appBase}/auth/callback?type=recovery`;
-
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
-      redirectTo
-    });
-
-    if (error) {
-      logger.error('Supabase resetPasswordForEmail error:', error);
-      // Supabase rate-limit or configuration error
-      return {
-        success: false,
-        message: error.message || 'Unable to dispatch recovery email. Please check your address or try again shortly.'
-      };
-    }
-
-    return {
-      success: true,
-      email: targetEmail,
-      userRole: match?.role,
-      message: `A password reset link has been dispatched to ${targetEmail}. Please check your inbox and spam folder, and click the link to set your new password.`
-    };
-  } catch (err: any) {
-    logger.error('Supabase resetPasswordForEmail exception:', err);
-    return {
-      success: false,
-      message: err?.message || 'Network error while requesting password reset. Please try again.'
-    };
-  }
+  return { success: true, updatedCredentials };
 }
