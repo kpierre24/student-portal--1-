@@ -1,8 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig(() => {
   return {
@@ -75,9 +78,9 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, 'src'),
-        'react': path.resolve(__dirname, 'node_modules/react'),
-        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+        '@': path.resolve(rootDir, 'src'),
+        'react': path.resolve(rootDir, 'node_modules/react'),
+        'react-dom': path.resolve(rootDir, 'node_modules/react-dom'),
       },
       dedupe: ['react', 'react-dom'],
     },
@@ -89,7 +92,7 @@ export default defineConfig(() => {
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws:; frame-ancestors 'self' https://*.run.app https://*.google.com https://*.googleusercontent.com https://ai.studio https://*.aistudio.google.com; object-src 'none'; base-uri 'self';",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
       },
     },
     preview: {
@@ -98,7 +101,7 @@ export default defineConfig(() => {
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss: ws:; frame-ancestors 'self' https://*.run.app https://*.google.com https://*.googleusercontent.com https://ai.studio https://*.aistudio.google.com; object-src 'none'; base-uri 'self';",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
       },
     },
     build: {
