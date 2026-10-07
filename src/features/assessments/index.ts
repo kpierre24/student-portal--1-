@@ -9,6 +9,7 @@ export { StudentAssessmentWorkspace } from './student/StudentAssessmentWorkspace
 // Gradebook & Score Matrix
 export { GradingWeightsModal } from './gradebook/GradingWeightsModal';
 export { ExamQuizScoreMatrix } from './gradebook/ExamQuizScoreMatrix';
+export { ManualGradeModal } from './gradebook/ManualGradeModal';
 
 // Teacher Assessment components
 export { TeacherAssignments } from './teacher/TeacherAssignments';

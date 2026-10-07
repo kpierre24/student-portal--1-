@@ -99,8 +99,11 @@ export function useSubmissions({
 
       const asg = customAssignments?.find((a) => a.id === target.assignmentId);
       const isGroup = target.isGroupSubmission || asg?.isGroupAssignment;
+      const targetStudent = (target.studentName || '').toLowerCase().trim();
       const groupObj = asg?.groups?.find(
-        (g) => g.groupName === target.groupName || (target.studentName && g.memberNames.includes(target.studentName))
+        (g) =>
+          (target.groupName && g.groupName.toLowerCase().trim() === target.groupName.toLowerCase().trim()) ||
+          (targetStudent && g.memberNames.some((m) => m.toLowerCase().trim() === targetStudent))
       );
       const groupMembers = target.groupMembers || groupObj?.memberNames || [];
 

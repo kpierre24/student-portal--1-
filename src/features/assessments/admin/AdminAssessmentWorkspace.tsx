@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { BookOpen, FileText, CheckSquare, Plus, HelpCircle, Sliders, FileSpreadsheet } from 'lucide-react';
+import { BookOpen, FileText, CheckSquare, Plus, HelpCircle, Sliders, FileSpreadsheet, Award } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { TeacherAssignments } from '../teacher/TeacherAssignments';
 import { SubmissionReview } from '../teacher/SubmissionReview';
 import { Gradebook } from '../teacher/Gradebook';
 import { ExamQuizScoreMatrix } from '../gradebook/ExamQuizScoreMatrix';
+import { ManualGradeModal } from '../gradebook/ManualGradeModal';
 import { AssessmentManagement } from './AssessmentManagement';
 import { CustomAssignment, AssignmentSubmission, StudentSummary } from '../../../types';
 
@@ -47,6 +48,7 @@ export const AdminAssessmentWorkspace: React.FC<AdminAssessmentWorkspaceProps> =
 }) => {
   const [activeTab, setActiveTab] = useState<'gradebook' | 'matrix' | 'assessments' | 'grading' | 'advanced'>('gradebook');
   const [filterAssignmentId, setFilterAssignmentId] = useState<string | null>(null);
+  const [showManualGradeModal, setShowManualGradeModal] = useState(false);
 
   const pendingSubmissionsCount = submissions.filter((s) => s.score === undefined).length;
 
@@ -80,7 +82,19 @@ export const AdminAssessmentWorkspace: React.FC<AdminAssessmentWorkspaceProps> =
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {onGradeSubmission && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowManualGradeModal(true)}
+              leftIcon={<Award className="h-3.5 w-3.5 text-indigo-500" />}
+              className="text-xs py-1.5"
+            >
+              + Add Grade Manually
+            </Button>
+          )}
+
           {onCreateAssignment && (
             <Button
               variant="primary"
@@ -266,6 +280,17 @@ export const AdminAssessmentWorkspace: React.FC<AdminAssessmentWorkspaceProps> =
       {activeTab === 'advanced' && (
         <AssessmentManagement
           onSyncGoogleSheets={onSyncGoogleSheets}
+        />
+      )}
+
+      {showManualGradeModal && (
+        <ManualGradeModal
+          isOpen={showManualGradeModal}
+          onClose={() => setShowManualGradeModal(false)}
+          assignments={assignments}
+          students={students}
+          submissions={submissions}
+          onGradeSubmission={onGradeSubmission}
         />
       )}
     </div>

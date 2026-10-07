@@ -81,10 +81,10 @@ export const SubmissionReview: React.FC<SubmissionReviewProps> = ({
                 <span>Group Marks Sync Active</span>
               </div>
               <p className="text-[11px] leading-relaxed text-indigo-800 dark:text-indigo-300">
-                This is a Group Assignment ({activeSubmission.groupName || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.includes(activeSubmission.studentName))?.groupName || 'Group'}).
+                This is a Group Assignment ({activeSubmission.groupName || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.some(m => m.toLowerCase().trim() === (activeSubmission.studentName || '').toLowerCase().trim()))?.groupName || 'Group'}).
                 The score and feedback saved here will automatically be awarded to all group members
-                {activeSubmission.groupMembers || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.includes(activeSubmission.studentName))?.memberNames
-                  ? ` (${(activeSubmission.groupMembers || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.includes(activeSubmission.studentName))?.memberNames)?.join(', ')})`
+                {activeSubmission.groupMembers || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.some(m => m.toLowerCase().trim() === (activeSubmission.studentName || '').toLowerCase().trim()))?.memberNames
+                  ? ` (${(activeSubmission.groupMembers || activeAssignment?.groups?.find(g => activeSubmission.studentName && g.memberNames.some(m => m.toLowerCase().trim() === (activeSubmission.studentName || '').toLowerCase().trim()))?.memberNames)?.join(', ')})`
                   : ''}.
               </p>
             </div>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { BookOpen, FileText, CheckSquare, Plus, HelpCircle, FileSpreadsheet } from 'lucide-react';
+import { BookOpen, FileText, CheckSquare, Plus, HelpCircle, FileSpreadsheet, Award } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { TeacherAssignments } from './TeacherAssignments';
 import { SubmissionReview } from './SubmissionReview';
 import { Gradebook } from './Gradebook';
 import { ExamQuizScoreMatrix } from '../gradebook/ExamQuizScoreMatrix';
+import { ManualGradeModal } from '../gradebook/ManualGradeModal';
 import { CustomAssignment, AssignmentSubmission, StudentSummary } from '../../../types';
 
 export interface TeacherAssessmentWorkspaceProps {
@@ -48,6 +49,7 @@ export const TeacherAssessmentWorkspace: React.FC<TeacherAssessmentWorkspaceProp
 }) => {
   const [activeTab, setActiveTab] = useState<'gradebook' | 'matrix' | 'assessments' | 'grading'>('gradebook');
   const [filterAssignmentId, setFilterAssignmentId] = useState<string | null>(null);
+  const [showManualGradeModal, setShowManualGradeModal] = useState(false);
 
   const pendingSubmissionsCount = submissions.filter((s) => s.score === undefined).length;
 
@@ -81,7 +83,19 @@ export const TeacherAssessmentWorkspace: React.FC<TeacherAssessmentWorkspaceProp
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {onGradeSubmission && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowManualGradeModal(true)}
+              leftIcon={<Award className="h-3.5 w-3.5 text-indigo-500" />}
+              className="text-xs py-1.5"
+            >
+              + Add Grade Manually
+            </Button>
+          )}
+
           {onCreateAssignment && (
             <Button
               variant="primary"
@@ -247,6 +261,17 @@ export const TeacherAssessmentWorkspace: React.FC<TeacherAssessmentWorkspaceProp
             onGradeSubmission={onGradeSubmission}
           />
         </div>
+      )}
+
+      {showManualGradeModal && (
+        <ManualGradeModal
+          isOpen={showManualGradeModal}
+          onClose={() => setShowManualGradeModal(false)}
+          assignments={assignments}
+          students={students}
+          submissions={submissions}
+          onGradeSubmission={onGradeSubmission}
+        />
       )}
     </div>
   );

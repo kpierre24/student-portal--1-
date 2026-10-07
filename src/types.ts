@@ -629,9 +629,9 @@ export type CustomAssignment = {
 
 export type GradingWeights = {
   quizzes: number;
-  assignments: number;
   attendance: number;
   scriptureRecitation: number;
+  assignments?: number;
 };
 
 export type GradeLifecycleStatus = 'SUBMITTED' | 'GRADED' | 'MODERATION' | 'RELEASED' | 'LOCKED' | 'submitted' | 'graded' | 'moderation' | 'released' | 'locked';

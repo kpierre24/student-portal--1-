@@ -45,7 +45,6 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
 
   const total = 
     (localWeights.quizzes || 0) + 
-    (localWeights.assignments || 0) + 
     (localWeights.attendance || 0) + 
     (localWeights.scriptureRecitation || 0);
 
@@ -64,31 +63,29 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
       return;
     }
     const q = Math.round(((localWeights.quizzes || 0) / total) * 100);
-    const a = Math.round(((localWeights.assignments || 0) / total) * 100);
     const att = Math.round(((localWeights.attendance || 0) / total) * 100);
-    const scrip = Math.max(0, 100 - (q + a + att));
+    const scrip = Math.max(0, 100 - (q + att));
     setLocalWeights({
       quizzes: q,
-      assignments: a,
       attendance: att,
       scriptureRecitation: scrip,
+      assignments: 0,
     });
   };
 
   const handleApplyPreset = (preset: GradingWeights) => {
-    setLocalWeights(preset);
+    setLocalWeights({ ...preset, assignments: 0 });
   };
 
   const handleSave = () => {
     if (!isValid) return;
-    onSaveWeights(localWeights);
+    onSaveWeights({ ...localWeights, assignments: 0 });
     onClose();
   };
 
   // Sample student calculation preview
   const sampleStudent = {
     quizPct: 88,
-    assignmentPct: 85,
     attendancePct: 94,
     scripturePct: 95,
   };
@@ -113,7 +110,7 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
                 Institutional Syllabus Weighting Policy
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                Configure the percentage contribution of each academic component toward every student’s final composite grade. The total sum across all 4 categories must equal exactly <span className="font-bold text-slate-900 dark:text-white">100%</span>.
+                Configure the percentage contribution of each academic component toward every student’s final composite grade. Rubric written % is excluded from composite evaluation. The total sum across the 3 categories must equal exactly <span className="font-bold text-slate-900 dark:text-white">100%</span>.
               </p>
             </div>
           </div>
@@ -141,11 +138,6 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
               title={`Quizzes: ${localWeights.quizzes}%`}
             />
             <div
-              style={{ width: `${Math.max(0, localWeights.assignments || 0)}%` }}
-              className="bg-purple-500 h-full transition-all duration-300"
-              title={`Assignments: ${localWeights.assignments}%`}
-            />
-            <div
               style={{ width: `${Math.max(0, localWeights.attendance || 0)}%` }}
               className="bg-emerald-500 h-full transition-all duration-300"
               title={`Attendance: ${localWeights.attendance}%`}
@@ -157,14 +149,10 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 pt-1">
+          <div className="grid grid-cols-3 gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400 pt-1">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
               <span>Quizzes ({localWeights.quizzes}%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />
-              <span>Assignments ({localWeights.assignments}%)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
@@ -177,7 +165,7 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
           </div>
         </div>
 
-        {/* 4 Weight Sliders & Inputs */}
+        {/* 3 Weight Sliders & Inputs */}
         <div className="space-y-4 pt-2">
           {/* 1. Quizzes */}
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
@@ -215,43 +203,7 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
             </p>
           </div>
 
-          {/* 2. Assignments */}
-          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <label htmlFor="weight-assignments" className="text-xs font-black text-slate-900 dark:text-white">
-                  Written Ministry Assignments & Homework
-                </label>
-              </div>
-              <div className="flex items-center gap-1">
-                <input
-                  id="weight-assignments"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={localWeights.assignments}
-                  onChange={(e) => handleSliderChange('assignments', parseInt(e.target.value) || 0)}
-                  className="w-16 px-2 py-1 text-center font-mono font-black text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
-                />
-                <span className="text-xs font-bold text-slate-500">%</span>
-              </div>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={localWeights.assignments}
-              onChange={(e) => handleSliderChange('assignments', parseInt(e.target.value))}
-              className="w-full accent-purple-600 cursor-pointer"
-            />
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              Evaluates submitted ministerial essays, research papers, and homework tasks.
-            </p>
-          </div>
-
-          {/* 3. Attendance */}
+          {/* 2. Attendance */}
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -287,7 +239,7 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
             </p>
           </div>
 
-          {/* 4. Scripture Recitation */}
+          {/* 3. Scripture Recitation */}
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -333,21 +285,21 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
               onClick={() => handleApplyPreset(DEFAULT_GRADING_WEIGHTS)}
               className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 cursor-pointer"
             >
-              HTEIM Standard (40/30/20/10)
+              HTEIM Standard (70/20/10)
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPreset({ quizzes: 50, assignments: 25, attendance: 15, scriptureRecitation: 10 })}
+              onClick={() => handleApplyPreset({ quizzes: 60, attendance: 30, scriptureRecitation: 10 })}
               className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 cursor-pointer"
             >
-              Exam Heavy (50/25/15/10)
+              Balanced (60/30/10)
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPreset({ quizzes: 30, assignments: 30, attendance: 30, scriptureRecitation: 10 })}
+              onClick={() => handleApplyPreset({ quizzes: 50, attendance: 30, scriptureRecitation: 20 })}
               className="px-2.5 py-1 text-xs font-bold bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg shadow-2xs hover:bg-slate-50 cursor-pointer"
             >
-              Balanced (30/30/30/10)
+              Practical & Memorization (50/30/20)
             </button>
           </div>
 
@@ -374,7 +326,7 @@ export const GradingWeightsModal: React.FC<GradingWeightsModalProps> = ({
             </span>
           </div>
           <p className="text-[11px] font-mono text-slate-600 dark:text-slate-300 break-words">
-            Final Grade = (Quizzes × {localWeights.quizzes}%) + (Assignments × {localWeights.assignments}%) + (Attendance × {localWeights.attendance}%) + (Scripture × {localWeights.scriptureRecitation}%)
+            Final Grade = (Quizzes × {localWeights.quizzes}%) + (Attendance × {localWeights.attendance}%) + (Scripture × {localWeights.scriptureRecitation}%)
           </p>
         </div>
 

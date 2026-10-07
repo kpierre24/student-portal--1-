@@ -33,6 +33,7 @@ import {
   ArrowRight,
   Check,
   X,
+  Save,
   Paperclip,
   ChevronRight,
   RefreshCw,
@@ -850,6 +851,13 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [showDirectStudentModal, setShowDirectStudentModal] = useState(false);
+  const [showManualGradeModal, setShowManualGradeModal] = useState(false);
+  const [manualGradeAssignmentId, setManualGradeAssignmentId] = useState<string>('');
+  const [manualGradeTargetType, setManualGradeTargetType] = useState<'group' | 'student'>('student');
+  const [manualGradeGroupName, setManualGradeGroupName] = useState<string>('');
+  const [manualGradeStudentName, setManualGradeStudentName] = useState<string>('');
+  const [manualGradeScore, setManualGradeScore] = useState<number>(95);
+  const [manualGradeFeedback, setManualGradeFeedback] = useState<string>('');
   const [previewFile, setPreviewFile] = useState<{ name: string; url?: string; content?: string } | null>(null);
 
   // Active items for modals
@@ -1271,23 +1279,118 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
     const { assignment, studentName, submission } = activeSubmissionForCorrection;
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
+    const isGroup = Boolean(assignment.isGroupAssignment || submission?.isGroupSubmission);
+    const normStudent = (studentName || '').toLowerCase().trim();
+    const normGroup = (submission?.groupName || '').toLowerCase().trim();
+
+    const groupObj = assignment.groups?.find(
+      (g) =>
+        (normGroup && g.groupName.toLowerCase().trim() === normGroup) ||
+        (normStudent && g.groupName.toLowerCase().trim() === normStudent) ||
+        (normStudent && g.memberNames.some((m) => m.toLowerCase().trim() === normStudent))
+    );
+    const groupMembers = (submission?.groupMembers && submission.groupMembers.length > 0)
+      ? submission.groupMembers
+      : (groupObj?.memberNames || []);
+
+    if (isGroup && groupMembers.length > 0) {
+      // Cascade mark and feedback to all members of the group
+      setSubmissions((prev) => {
+        const updated = [...prev];
+        groupMembers.forEach((memberName) => {
+          const idx = updated.findIndex(
+            (s) =>
+              s.assignmentId === assignment.id &&
+              (s.studentName || '').toLowerCase().trim() === memberName.toLowerCase().trim()
+          );
+
+          if (idx !== -1) {
+            updated[idx] = {
+              ...updated[idx],
+              score: correctionScore,
+              teacherFeedback: correctionFeedback,
+              teacherCorrectedFileName: correctedFileName || updated[idx].teacherCorrectedFileName || 'Teacher_Corrected_Assignment.pdf',
+              teacherCorrectedFileUrl: correctedFileUrl || updated[idx].teacherCorrectedFileUrl || 'data:text/plain;base64,R1JBREVEIEFORCBDT1JSRUNURUQgQllBIEZBQ1VMVFk=',
+              teacherCorrectedFileType: correctedFileType || updated[idx].teacherCorrectedFileType || 'application/pdf',
+              status: correctedFileName || correctedFileUrl ? 'Correction Returned' : 'Graded',
+              isGroupSubmission: true,
+              groupName: groupObj?.groupName || submission?.groupName || 'Group',
+              groupMembers,
+              updatedAt: nowStr,
+            };
+          } else {
+            updated.unshift({
+              id: generateUUID(),
+              assignmentId: assignment.id,
+              studentName: memberName,
+              submittedAt: nowStr,
+              studentFileName: 'Direct_Group_Submission.pdf',
+              score: correctionScore,
+              teacherFeedback: correctionFeedback,
+              teacherCorrectedFileName: correctedFileName || 'Teacher_Corrected_Assignment.pdf',
+              teacherCorrectedFileUrl: correctedFileUrl || 'data:text/plain;base64,R1JBREVEIEFORCBDT1JSRUNURUQgQllBIEZBQ1VMVFk=',
+              teacherCorrectedFileType: correctedFileType || 'application/pdf',
+              status: correctedFileName || correctedFileUrl ? 'Correction Returned' : 'Graded',
+              isGroupSubmission: true,
+              groupName: groupObj?.groupName || submission?.groupName || 'Group',
+              groupMembers,
+              updatedAt: nowStr,
+            });
+          }
+        });
+        return updated;
+      });
+
+      logActivity({
+        actor: userRole === 'admin' ? 'Administrator' : 'Instructor',
+        role: userRole === 'admin' ? 'admin' : 'teacher',
+        actionCategory: 'Grade Adjustment',
+        actionTitle: 'Group Assignment Grade Saved',
+        details: `Graded group assignment "${assignment.title}" for ${groupObj?.groupName || 'Group'} (${groupMembers.join(', ')}). Score: ${correctionScore}/${assignment.maxPoints}.${correctionFeedback ? ` Feedback: "${correctionFeedback}"` : ''}`,
+        targetStudent: groupMembers.join(', '),
+      });
+
+      if (onNotificationCreated) {
+        groupMembers.forEach((memberName) => {
+          onNotificationCreated({
+            id: generateUUID(),
+            title: `🎓 Assignment Graded: ${assignment.title}`,
+            message: `Your group was awarded a score of ${correctionScore}/${assignment.maxPoints}.${correctionFeedback ? ` Instructor Feedback: "${correctionFeedback}"` : ''}${correctedFileName ? ' Corrected document attached.' : ''}`,
+            type: 'graded',
+            targetRole: 'student',
+            studentName: memberName,
+            assignmentId: assignment.id,
+            createdAt: nowStr,
+            read: false,
+            priority: 'high',
+            actionTab: 'exams',
+          });
+        });
+      }
+
+      setShowCorrectionModal(false);
+      return;
+    }
+
     if (submission) {
       // Update submission with grade and corrected file
-      setSubmissions(prev => prev.map(s => {
-        if (s.id === submission.id) {
-          return {
-            ...s,
-            score: correctionScore,
-            teacherFeedback: correctionFeedback,
-            teacherCorrectedFileName: correctedFileName || 'Teacher_Corrected_Assignment.pdf',
-            teacherCorrectedFileUrl: correctedFileUrl || s.teacherCorrectedFileUrl || 'data:text/plain;base64,R1JBREVEIEFORCBDT1JSRUNURUQgQllBIEZBQ1VMVFk=',
-            teacherCorrectedFileType: correctedFileType || 'application/pdf',
-            status: correctedFileName || correctedFileUrl ? 'Correction Returned' : 'Graded',
-            updatedAt: nowStr
-          };
-        }
-        return s;
-      }));
+      setSubmissions((prev) =>
+        prev.map((s) => {
+          if (s.id === submission.id) {
+            return {
+              ...s,
+              score: correctionScore,
+              teacherFeedback: correctionFeedback,
+              teacherCorrectedFileName: correctedFileName || 'Teacher_Corrected_Assignment.pdf',
+              teacherCorrectedFileUrl: correctedFileUrl || s.teacherCorrectedFileUrl || 'data:text/plain;base64,R1JBREVEIEFORCBDT1JSRUNURUQgQllBIEZBQ1VMVFk=',
+              teacherCorrectedFileType: correctedFileType || 'application/pdf',
+              status: correctedFileName || correctedFileUrl ? 'Correction Returned' : 'Graded',
+              updatedAt: nowStr,
+            };
+          }
+          return s;
+        })
+      );
     } else {
       // Create new submission on behalf of student with correction
       const newSub: AssignmentSubmission = {
@@ -1302,9 +1405,9 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
         teacherCorrectedFileUrl: correctedFileUrl || 'data:text/plain;base64,R1JBREVEIEFORCBDT1JSRUNURUQgQllBIEZBQ1VMVFk=',
         teacherCorrectedFileType: correctedFileType || 'application/pdf',
         status: correctedFileName || correctedFileUrl ? 'Correction Returned' : 'Graded',
-        updatedAt: nowStr
+        updatedAt: nowStr,
       };
-      setSubmissions(prev => [newSub, ...prev]);
+      setSubmissions((prev) => [newSub, ...prev]);
     }
 
     logActivity({
@@ -1334,6 +1437,185 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
     }
 
     setShowCorrectionModal(false);
+  };
+
+  // Manual Grade Entry Handler
+  const handleOpenManualGradeModal = (defaultAsgId?: string, defaultStudentName?: string) => {
+    const asgId = defaultAsgId || manualGradeAssignmentId || customAssignments[0]?.id || '';
+    setManualGradeAssignmentId(asgId);
+    const targetAsg = customAssignments.find((a) => a.id === asgId);
+
+    if (targetAsg?.isGroupAssignment && targetAsg.groups && targetAsg.groups.length > 0) {
+      setManualGradeTargetType('group');
+      const firstGrp = targetAsg.groups[0];
+      setManualGradeGroupName(firstGrp.groupName);
+      setManualGradeStudentName(defaultStudentName || firstGrp.memberNames[0] || (students[0]?.name || ''));
+    } else {
+      setManualGradeTargetType('student');
+      setManualGradeStudentName(defaultStudentName || (students[0]?.name || ''));
+      setManualGradeGroupName('');
+    }
+
+    setManualGradeScore(targetAsg?.maxPoints || 95);
+    setManualGradeFeedback('');
+    setShowManualGradeModal(true);
+  };
+
+  const handleSaveManualGrade = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualGradeAssignmentId) return;
+
+    const assignment = customAssignments.find((a) => a.id === manualGradeAssignmentId);
+    if (!assignment) return;
+
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const isGroup = Boolean(assignment.isGroupAssignment);
+    const validatedScore = Math.min(Math.max(0, Number(manualGradeScore) || 0), assignment.maxPoints || 100);
+
+    if (isGroup && assignment.groups && assignment.groups.length > 0) {
+      let targetGroup = assignment.groups.find((g) => g.groupName === manualGradeGroupName);
+      if (!targetGroup && manualGradeStudentName) {
+        targetGroup = assignment.groups.find((g) =>
+          g.memberNames.some((m) => m.toLowerCase().trim() === manualGradeStudentName.toLowerCase().trim())
+        );
+      }
+      if (!targetGroup && assignment.groups.length > 0) {
+        targetGroup = assignment.groups[0];
+      }
+
+      const members = targetGroup?.memberNames || [];
+      if (members.length > 0) {
+        setSubmissions((prev) => {
+          const updated = [...prev];
+          members.forEach((memberName) => {
+            const idx = updated.findIndex(
+              (s) =>
+                s.assignmentId === assignment.id &&
+                (s.studentName || '').toLowerCase().trim() === memberName.toLowerCase().trim()
+            );
+
+            if (idx !== -1) {
+              updated[idx] = {
+                ...updated[idx],
+                score: validatedScore,
+                teacherFeedback: manualGradeFeedback,
+                status: 'Graded',
+                isGroupSubmission: true,
+                groupName: targetGroup?.groupName,
+                groupMembers: members,
+                updatedAt: nowStr,
+              };
+            } else {
+              updated.unshift({
+                id: generateUUID(),
+                assignmentId: assignment.id,
+                studentName: memberName,
+                submittedAt: nowStr,
+                studentFileName: 'Manual_Group_Grade.pdf',
+                score: validatedScore,
+                teacherFeedback: manualGradeFeedback,
+                status: 'Graded',
+                isGroupSubmission: true,
+                groupName: targetGroup?.groupName,
+                groupMembers: members,
+                updatedAt: nowStr,
+              });
+            }
+          });
+          return updated;
+        });
+
+        logActivity({
+          actor: userRole === 'admin' ? 'Administrator' : 'Instructor',
+          role: userRole === 'admin' ? 'admin' : 'teacher',
+          actionCategory: 'Grade Adjustment',
+          actionTitle: 'Manual Group Grade Awarded',
+          details: `Manually awarded ${validatedScore}/${assignment.maxPoints} to ${targetGroup?.groupName || 'Group'} (${members.join(', ')}).${manualGradeFeedback ? ` Feedback: "${manualGradeFeedback}"` : ''}`,
+          targetStudent: members.join(', '),
+        });
+
+        if (onNotificationCreated) {
+          members.forEach((memberName) => {
+            onNotificationCreated({
+              id: generateUUID(),
+              title: `🎓 Assignment Graded: ${assignment.title}`,
+              message: `Your group was awarded ${validatedScore}/${assignment.maxPoints}.${manualGradeFeedback ? ` Feedback: "${manualGradeFeedback}"` : ''}`,
+              type: 'graded',
+              targetRole: 'student',
+              studentName: memberName,
+              assignmentId: assignment.id,
+              createdAt: nowStr,
+              read: false,
+              priority: 'high',
+              actionTab: 'exams',
+            });
+          });
+        }
+
+        setShowManualGradeModal(false);
+        return;
+      }
+    }
+
+    // Individual
+    const student = manualGradeStudentName || (students[0]?.name || 'Student');
+    setSubmissions((prev) => {
+      const updated = [...prev];
+      const idx = updated.findIndex(
+        (s) =>
+          s.assignmentId === assignment.id &&
+          (s.studentName || '').toLowerCase().trim() === student.toLowerCase().trim()
+      );
+      if (idx !== -1) {
+        updated[idx] = {
+          ...updated[idx],
+          score: validatedScore,
+          teacherFeedback: manualGradeFeedback,
+          status: 'Graded',
+          updatedAt: nowStr,
+        };
+      } else {
+        updated.unshift({
+          id: generateUUID(),
+          assignmentId: assignment.id,
+          studentName: student,
+          submittedAt: nowStr,
+          studentFileName: 'Manual_Grade_Entry.pdf',
+          score: validatedScore,
+          teacherFeedback: manualGradeFeedback,
+          status: 'Graded',
+          updatedAt: nowStr,
+        });
+      }
+      return updated;
+    });
+
+    logActivity({
+      actor: userRole === 'admin' ? 'Administrator' : 'Instructor',
+      role: userRole === 'admin' ? 'admin' : 'teacher',
+      actionCategory: 'Grade Adjustment',
+      actionTitle: 'Manual Grade Awarded',
+      details: `Manually awarded ${validatedScore}/${assignment.maxPoints} to ${student} for "${assignment.title}".${manualGradeFeedback ? ` Feedback: "${manualGradeFeedback}"` : ''}`,
+      targetStudent: student,
+    });
+
+    if (onNotificationCreated) {
+      onNotificationCreated({
+        id: generateUUID(),
+        title: `🎓 Assignment Graded: ${assignment.title}`,
+        message: `You were awarded ${validatedScore}/${assignment.maxPoints} for "${assignment.title}".${manualGradeFeedback ? ` Feedback: "${manualGradeFeedback}"` : ''}`,
+        type: 'graded',
+        targetRole: 'student',
+        studentName: student,
+        assignmentId: assignment.id,
+        createdAt: nowStr,
+        read: false,
+        priority: 'high',
+        actionTab: 'exams',
+      });
+    }
+
+    setShowManualGradeModal(false);
   };
 
   // 5. Teacher Direct Upload / Edit Student Upload
@@ -1510,13 +1792,23 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
                 </button>
 
                 {subTab === 'assignments' && (
-                  <button
-                    onClick={handleOpenCreateAssignment}
-                    className="flex-1 sm:flex-none min-h-11 px-3.5 sm:px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 shrink-0" />
-                    <span>Add Assignment</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenManualGradeModal()}
+                      className="flex-1 sm:flex-none min-h-11 px-3.5 sm:px-4 py-2 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Award className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                      <span>Add Grade Manually</span>
+                    </button>
+                    <button
+                      onClick={handleOpenCreateAssignment}
+                      className="flex-1 sm:flex-none min-h-11 px-3.5 sm:px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 shrink-0" />
+                      <span>Add Assignment</span>
+                    </button>
+                  </>
                 )}
               </>
             )}
@@ -2056,6 +2348,16 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
                       <span>Table</span>
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenManualGradeModal()}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                    title="Add grades manually for any student or group"
+                  >
+                    <Award className="w-3.5 h-3.5" />
+                    <span>Add Grade</span>
+                  </button>
 
                   <span className="font-mono text-[10px] sm:text-xs text-slate-400 bg-slate-800/80 px-2 py-1 rounded-lg border border-slate-700/60">
                     {filteredSubmissions.length} Record(s)
@@ -3327,6 +3629,19 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
           size="lg"
         >
           <form onSubmit={handleSaveCorrection} className="space-y-4 text-xs font-medium">
+              {/* Group Assignment Banner */}
+              {activeSubmissionForCorrection.assignment.isGroupAssignment && (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl space-y-1 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-indigo-950">
+                    <Users className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>Group Assignment: Mark Will Apply to All Members</span>
+                  </div>
+                  <p className="text-[11px] text-indigo-800 leading-relaxed">
+                    Any mark or feedback awarded here will automatically sync to all members of this group.
+                  </p>
+                </div>
+              )}
+
               {/* Student Submission Quick View */}
               {activeSubmissionForCorrection.submission?.studentFiles && activeSubmissionForCorrection.submission.studentFiles.length > 0 ? (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
@@ -3988,6 +4303,182 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL 6: MANUAL GRADE ENTRY MODAL (WITH GROUP MARK SYNC) */}
+      {/* ========================================================= */}
+      {showManualGradeModal && (
+        <Modal
+          isOpen={showManualGradeModal}
+          onClose={() => setShowManualGradeModal(false)}
+          title="Manual Assignment Grade Entry"
+          subtitle="Record marks for individual or group coursework assignments"
+          icon={<Award className="w-5 h-5 text-indigo-600 shrink-0" />}
+          size="lg"
+        >
+          <form onSubmit={handleSaveManualGrade} className="space-y-4 text-xs font-medium">
+            {/* Select Assignment */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700">Select Assignment *</label>
+              <select
+                value={manualGradeAssignmentId}
+                onChange={(e) => {
+                  const asgId = e.target.value;
+                  setManualGradeAssignmentId(asgId);
+                  const asg = customAssignments.find((a) => a.id === asgId);
+                  if (asg?.isGroupAssignment && asg.groups && asg.groups.length > 0) {
+                    setManualGradeTargetType('group');
+                    setManualGradeGroupName(asg.groups[0].groupName);
+                  } else {
+                    setManualGradeTargetType('student');
+                  }
+                  if (asg) {
+                    setManualGradeScore(asg.maxPoints || 100);
+                  }
+                }}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 cursor-pointer"
+              >
+                {customAssignments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.isGroupAssignment ? '👥 [Group] ' : '📄 [Individual] '}
+                    {a.title} (Max: {a.maxPoints || 100} pts)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* If selected assignment is Group Assignment */}
+            {(() => {
+              const currentAsg = customAssignments.find((a) => a.id === manualGradeAssignmentId);
+              const isGroup = Boolean(currentAsg?.isGroupAssignment);
+              const groupsList = currentAsg?.groups || [];
+
+              if (isGroup) {
+                const targetGroup = groupsList.find((g) => g.groupName === manualGradeGroupName) || groupsList[0];
+                const members = targetGroup?.memberNames || [];
+
+                return (
+                  <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-indigo-950 flex items-center gap-1.5 text-xs">
+                        <Users className="w-4 h-4 text-indigo-600" />
+                        Group Assignment: Mark Sync Active
+                      </span>
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-indigo-200 text-indigo-800">
+                        {groupsList.length} Groups Configured
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-indigo-800 leading-relaxed">
+                      Grading this assignment will automatically award the score and feedback to <strong>all members</strong> of the selected group.
+                    </p>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-indigo-900">Select Target Group</label>
+                      <select
+                        value={manualGradeGroupName}
+                        onChange={(e) => setManualGradeGroupName(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-indigo-200 rounded-xl font-bold text-slate-900 cursor-pointer"
+                      >
+                        {groupsList.map((g) => (
+                          <option key={g.groupName} value={g.groupName}>
+                            {g.groupName} ({g.memberNames?.length || 0} members)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {members.length > 0 && (
+                      <div className="pt-2 border-t border-indigo-200 space-y-1">
+                        <span className="text-[10px] uppercase font-extrabold tracking-wider text-indigo-800 block">
+                          Group Members Receiving This Grade ({members.length}):
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {members.map((m) => (
+                            <span key={m} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white border border-indigo-200 text-indigo-900 font-bold text-[10px]">
+                              <User className="w-2.5 h-2.5 text-indigo-500" /> {m}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Select Target Student *</label>
+                  <select
+                    value={manualGradeStudentName}
+                    onChange={(e) => setManualGradeStudentName(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 cursor-pointer"
+                  >
+                    {students.map((s, sIdx) => (
+                      <option key={`${s.name}-${sIdx}`} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
+
+            {/* Score input */}
+            {(() => {
+              const currentAsg = customAssignments.find((a) => a.id === manualGradeAssignmentId);
+              const maxPts = currentAsg?.maxPoints || 100;
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700">Awarded Score (0–{maxPts}) *</label>
+                    <span className="font-mono text-xs font-bold text-indigo-600">
+                      Max: {maxPts} Points
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max={maxPts}
+                    value={manualGradeScore ?? ''}
+                    onChange={(e) => setManualGradeScore(parseInt(e.target.value, 10) || 0)}
+                    required
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              );
+            })()}
+
+            {/* Feedback input */}
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700">Teacher Feedback & Evaluation Notes</label>
+              <textarea
+                rows={3}
+                placeholder="Commendations, doctrinal feedback, rubric observations..."
+                value={manualGradeFeedback}
+                onChange={(e) => setManualGradeFeedback(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-3 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 border-t border-slate-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowManualGradeModal(false)}
+                className="px-4 py-2.5 sm:py-2 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-1.5 text-center"
+              >
+                <Save className="w-4 h-4 shrink-0" />
+                <span>Save Grade</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {showFlashcards && (

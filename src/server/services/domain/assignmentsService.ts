@@ -730,6 +730,91 @@ export const assignmentsService = {
         .update({ status: nextStatus, updated_at: timestamp })
         .eq('id', data.submissionId);
 
+      // 5. If this is a group assignment, cascade score and feedback to all members of the group
+      const isGroup = Boolean(
+        assignment.is_group_assignment ??
+        assignment.isGroupAssignment ??
+        assignment.rubric?.isGroupAssignment ??
+        sub.is_group_submission ??
+        sub.isGroupSubmission ??
+        false
+      );
+      const groupsList: Array<{ groupName: string; memberNames: string[] }> =
+        assignment.groups || assignment.rubric?.groups || [];
+
+      if (isGroup && groupsList.length > 0) {
+        const studentName = (sub.student_name || sub.studentName || data.studentName || '').toLowerCase().trim();
+        const subGroupName = (sub.group_name || sub.groupName || '').toLowerCase().trim();
+
+        const matchingGroup = groupsList.find(
+          (g) =>
+            (subGroupName && g.groupName.toLowerCase().trim() === subGroupName) ||
+            (studentName && g.memberNames.some((m) => m.toLowerCase().trim() === studentName))
+        );
+
+        if (matchingGroup && matchingGroup.memberNames?.length > 0) {
+          for (const memberName of matchingGroup.memberNames) {
+            const memberTrimmed = memberName.trim();
+            if (memberTrimmed.toLowerCase() === studentName) continue; // Already graded above
+
+            try {
+              const { data: memberSub } = await supabase
+                .from('submissions')
+                .select('id, status')
+                .eq('assignment_id', assignment.id)
+                .ilike('student_name', memberTrimmed)
+                .maybeSingle();
+
+              let memberSubId = memberSub?.id;
+              if (!memberSubId) {
+                const { data: newSub } = await supabase
+                  .from('submissions')
+                  .insert({
+                    assignment_id: assignment.id,
+                    student_name: memberTrimmed,
+                    status: 'GRADED',
+                    group_name: matchingGroup.groupName,
+                    is_group_submission: true,
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                  })
+                  .select('id')
+                  .maybeSingle();
+                memberSubId = newSub?.id;
+              } else {
+                await supabase
+                  .from('submissions')
+                  .update({
+                    status: nextStatus,
+                    group_name: matchingGroup.groupName,
+                    is_group_submission: true,
+                    updated_at: timestamp,
+                  })
+                  .eq('id', memberSubId);
+              }
+
+              if (memberSubId) {
+                await supabase
+                  .from('grades')
+                  .upsert(
+                    {
+                      submission_id: memberSubId,
+                      points_awarded: numericScore,
+                      feedback: data.feedback || '',
+                      graded_at: timestamp,
+                      graded_by_user_id: actorUserId,
+                      updated_at: timestamp,
+                    },
+                    { onConflict: 'submission_id' }
+                  );
+              }
+            } catch (cascadeErr) {
+              logger.warn(`Group grade cascade notice for member ${memberTrimmed}:`, cascadeErr);
+            }
+          }
+        }
+      }
+
       // Log audit entry with all authoritative fields
       const isLockedOverride = currentStatus === 'LOCKED' || Boolean(data.overrideReason);
       await logAuditEvent({

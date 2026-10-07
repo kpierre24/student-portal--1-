@@ -51,11 +51,19 @@ export const ExamsPage: React.FC<ExamsPageProps> = (props) => {
         const studentNameVal = targetSub?.studentName || parsedStudentName;
         const asg = assignments.find((a) => a.id === asgId);
 
-        const isGroup = targetSub?.isGroupSubmission || asg?.isGroupAssignment;
+        const isGroup = Boolean(targetSub?.isGroupSubmission || asg?.isGroupAssignment);
+        const normStudent = (studentNameVal || '').toLowerCase().trim();
+        const normGroup = (targetSub?.groupName || '').toLowerCase().trim();
+
         const groupObj = asg?.groups?.find(
-          (g) => g.groupName === targetSub?.groupName || (studentNameVal && g.memberNames.includes(studentNameVal))
+          (g) =>
+            (normGroup && g.groupName.toLowerCase().trim() === normGroup) ||
+            (normStudent && g.groupName.toLowerCase().trim() === normStudent) ||
+            (normStudent && g.memberNames.some((m) => m.toLowerCase().trim() === normStudent))
         );
-        const groupMembers = targetSub?.groupMembers || groupObj?.memberNames || [];
+        const groupMembers = (targetSub?.groupMembers && targetSub.groupMembers.length > 0)
+          ? targetSub.groupMembers
+          : (groupObj?.memberNames || []);
 
         if (isGroup && groupMembers.length > 0) {
           const updated = [...prev];

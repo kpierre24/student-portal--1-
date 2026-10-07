@@ -1075,7 +1075,14 @@ export function usePortalState() {
   const [gradingWeights, setGradingWeights] = useState<GradingWeights>(() => {
     try {
       const saved = localStorage.getItem('hteim_grading_weights');
-      return saved ? JSON.parse(saved) : DEFAULT_GRADING_WEIGHTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.assignments && parsed.assignments > 0) {
+          return DEFAULT_GRADING_WEIGHTS;
+        }
+        return parsed;
+      }
+      return DEFAULT_GRADING_WEIGHTS;
     } catch {
       return DEFAULT_GRADING_WEIGHTS;
     }

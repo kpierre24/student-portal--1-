@@ -198,7 +198,6 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
     const breakdown = getDetailedWeightedBreakdown(
       {
         quizPct: effectivePct,
-        assignmentPct: effectiveAsgPct,
         attendancePct: attendancePct,
         scripturePct: rub.scripture,
       },
@@ -339,7 +338,6 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
       'Quiz Average %',
       'Overall Start-to-Finish %',
       'Letter Grade',
-      'Written Rubric %',
       'Composite Final %',
     ];
 
@@ -377,7 +375,6 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
         `"${m?.quizAvg !== null ? `${m?.quizAvg}%` : 'N/A'}"`,
         `"${m?.overallFromStartToFinish !== null ? `${m?.overallFromStartToFinish}%` : 'N/A'}"`,
         `"${m?.gradeLetter ?? 'N/A'}"`,
-        `"${m?.rubricAssignment ?? 85}%"`,
         `"${m?.compositeFinal ?? 0}%"`,
       ].join(',');
     });
@@ -421,7 +418,7 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
             title="Configure syllabus weighting formula"
           >
             <Scale className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>Weights ({activeWeights.quizzes}/{activeWeights.assignments}/{activeWeights.attendance}/{activeWeights.scriptureRecitation})</span>
+            <span>Weights ({activeWeights.quizzes}% Quizzes / {activeWeights.attendance}% Attendance / {activeWeights.scriptureRecitation}% Scripture)</span>
           </Button>
 
           {onSyncGoogleSheets && (
@@ -694,12 +691,6 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
                   <div className="font-bold text-[11px]">Grade</div>
                 </th>
 
-                {/* Written Rubric % (Interactive) */}
-                <th className="p-3 text-center min-w-[95px] sticky top-0 z-20 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[10px] text-slate-700 dark:text-slate-300">
-                  <div className="text-[9px] uppercase font-bold text-slate-400 mb-0.5">Rubric</div>
-                  <div className="font-bold text-[11px]">Written %</div>
-                </th>
-
                 {/* Composite Final Grade % */}
                 <th className="p-3 text-center min-w-[110px] sticky top-0 z-20 bg-indigo-100/70 dark:bg-indigo-900/40 border-b border-indigo-200 dark:border-indigo-700 text-[10px] text-indigo-950 dark:text-indigo-200">
                   <div className="text-[9px] uppercase font-bold text-indigo-600 dark:text-indigo-400 mb-0.5 flex items-center justify-center gap-1">
@@ -722,7 +713,7 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
               {displayedStudents.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={sanitizedQuizSheets.length + assignments.length + 7}
+                    colSpan={sanitizedQuizSheets.length + assignments.length + 6}
                     className="p-8 text-center text-slate-400 font-medium"
                   >
                     No matching student score records found.
@@ -887,21 +878,6 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
                         </span>
                       </td>
 
-                      {/* Written Rubric % (Interactive) */}
-                      <td className="p-3 text-center font-mono border-b border-slate-200 dark:border-slate-800">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={m?.rubricAssignment ?? 85}
-                          onChange={(e) =>
-                            onUpdateRubric?.(studentKey, 'assignment', parseInt(e.target.value, 10) || 0)
-                          }
-                          className="w-12 py-0.5 px-1 text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded font-bold text-xs text-slate-900 dark:text-white"
-                        />
-                        <span className="text-slate-400 ml-1 text-xs">%</span>
-                      </td>
-
                       {/* Composite Final Grade % */}
                       <td
                         className={`p-3 text-center font-mono font-black border-b border-slate-200 dark:border-slate-800 cursor-help transition-colors ${
@@ -911,7 +887,7 @@ export const ExamQuizScoreMatrix: React.FC<ExamQuizScoreMatrixProps> = ({
                             ? 'text-rose-700 dark:text-rose-300 bg-rose-50/50 dark:bg-rose-950/20'
                             : 'text-indigo-900 dark:text-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20'
                         }`}
-                        title={m?.breakdown ? `Weighted Composite Breakdown (${m.breakdown.standing}):\n${m.breakdown.formulaString}\n\n• Quizzes (${m.breakdown.components.quizzes.weight}%): ${m.breakdown.components.quizzes.rawPct}% -> +${m.breakdown.components.quizzes.contribution} pts\n• Written Assignments (${m.breakdown.components.assignments.weight}%): ${m.breakdown.components.assignments.rawPct}% -> +${m.breakdown.components.assignments.contribution} pts\n• Attendance (${m.breakdown.components.attendance.weight}%): ${m.breakdown.components.attendance.rawPct}% -> +${m.breakdown.components.attendance.contribution} pts\n• Scripture Drill (${m.breakdown.components.scriptureRecitation.weight}%): ${m.breakdown.components.scriptureRecitation.rawPct}% -> +${m.breakdown.components.scriptureRecitation.contribution} pts\nTotal = ${m.compositeFinal}% (${m.gradeLetter})` : `Composite: ${m?.compositeFinal}%`}
+                        title={m?.breakdown ? `Weighted Composite Breakdown (${m.breakdown.standing}):\n${m.breakdown.formulaString}\n\n• Quizzes (${m.breakdown.components.quizzes.weight}%): ${m.breakdown.components.quizzes.rawPct}% -> +${m.breakdown.components.quizzes.contribution} pts\n• Attendance (${m.breakdown.components.attendance.weight}%): ${m.breakdown.components.attendance.rawPct}% -> +${m.breakdown.components.attendance.contribution} pts\n• Scripture Drill (${m.breakdown.components.scriptureRecitation.weight}%): ${m.breakdown.components.scriptureRecitation.rawPct}% -> +${m.breakdown.components.scriptureRecitation.contribution} pts\nTotal = ${m.compositeFinal}% (${m.gradeLetter})` : `Composite: ${m?.compositeFinal}%`}
                       >
                         <div className="flex items-center justify-center gap-1">
                           <span>{m?.compositeFinal || 0}%</span>

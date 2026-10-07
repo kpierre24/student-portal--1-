@@ -15,8 +15,10 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Eye
 } from 'lucide-react';
+import { ResourceQuickPreviewModal } from './ResourceQuickPreviewModal';
 import { LearningResource, MyLibrarySection, ResourceProgress } from '../types';
 import { getFavoriteResourceIds, getRecentResourceIds, getDownloadedResourceIds, toggleFavoriteResource } from '../services/favoritesService';
 import { loadAllLocalProgress, recordResourceProgress } from '../services/progressService';
@@ -40,6 +42,7 @@ export const MyLibraryView: React.FC<MyLibraryViewProps> = ({
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [downloadIds, setDownloadIds] = useState<string[]>([]);
   const [progressRecords, setProgressRecords] = useState<Record<string, ResourceProgress>>({});
+  const [quickPreviewResource, setQuickPreviewResource] = useState<LearningResource | null>(null);
 
   // Reload state
   const refreshData = () => {
@@ -278,14 +281,20 @@ export const MyLibraryView: React.FC<MyLibraryViewProps> = ({
                         <p className="text-xs text-slate-400 mt-1 line-clamp-2">{res.description}</p>
                       )}
 
-                      <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                        <span>{res.author || (res as any).instructor || 'Elder Renee Pierre'}</span>
-                        {res.courseId && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate">{res.courseId}</span>
-                          </>
-                        )}
+                      <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500">
+                        <span className="truncate max-w-[140px]">{res.author || (res as any).instructor || 'Elder Renee Pierre'}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickPreviewResource(res);
+                          }}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/80 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                          title="Quick Preview synopsis and metadata"
+                        >
+                          <Eye className="w-3 h-3 text-indigo-400" />
+                          <span>Preview</span>
+                        </button>
                       </div>
                     </div>
 
@@ -515,7 +524,21 @@ export const MyLibraryView: React.FC<MyLibraryViewProps> = ({
 
                   <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
                     <span className="text-emerald-400 font-medium">Downloaded ✓</span>
-                    <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform">View →</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickPreviewResource(res);
+                        }}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/80 transition-all flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Quick Preview"
+                      >
+                        <Eye className="w-3 h-3 text-indigo-400" />
+                        <span>Preview</span>
+                      </button>
+                      <span className="text-amber-400 group-hover:translate-x-0.5 transition-transform">View →</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -523,6 +546,14 @@ export const MyLibraryView: React.FC<MyLibraryViewProps> = ({
           )}
         </div>
       )}
+
+      {/* Resource Quick Preview Modal */}
+      <ResourceQuickPreviewModal
+        resource={quickPreviewResource}
+        isOpen={!!quickPreviewResource}
+        onClose={() => setQuickPreviewResource(null)}
+        onSelectResource={onSelectResource}
+      />
     </div>
   );
 };

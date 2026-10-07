@@ -99,8 +99,8 @@ export const WeightedGradeBreakdownCard: React.FC<WeightedGradeBreakdownCardProp
         </div>
       </div>
 
-      {/* 2. 4-Component Visual Breakdown Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      {/* 2. 3-Component Visual Breakdown Grid (Quizzes, Attendance, Scripture) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Component 1: Quizzes & Exams */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
           <div className="flex items-center justify-between">
@@ -136,42 +136,7 @@ export const WeightedGradeBreakdownCard: React.FC<WeightedGradeBreakdownCardProp
           </div>
         </div>
 
-        {/* Component 2: Written Assignments */}
-        <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
-              <FileText className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Written Work</span>
-            </span>
-            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-              Weight: {breakdown.components.assignments.weight}%
-            </span>
-          </div>
-
-          <div className="flex items-baseline justify-between">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">Raw Score</p>
-              <p className="text-lg font-black font-mono text-slate-900 dark:text-white">
-                {breakdown.components.assignments.rawPct}%
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-slate-400 font-bold uppercase">Points Earned</p>
-              <p className="text-lg font-black font-mono text-purple-600 dark:text-purple-400">
-                +{breakdown.components.assignments.contribution}
-              </p>
-            </div>
-          </div>
-
-          <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
-            <div 
-              className="bg-purple-600 h-full rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(100, breakdown.components.assignments.rawPct)}%` }} 
-            />
-          </div>
-        </div>
-
-        {/* Component 3: Attendance */}
+        {/* Component 2: Attendance */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
@@ -206,7 +171,7 @@ export const WeightedGradeBreakdownCard: React.FC<WeightedGradeBreakdownCardProp
           </div>
         </div>
 
-        {/* Component 4: Scripture Memorization */}
+        {/* Component 3: Scripture Memorization */}
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-xs font-extrabold text-slate-800 dark:text-slate-200">
@@ -267,8 +232,7 @@ export const WeightedGradeBreakdownCard: React.FC<WeightedGradeBreakdownCardProp
               {breakdown.formulaString}
             </div>
             <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-              <li><strong className="text-slate-700 dark:text-slate-200">Quizzes ({breakdown.components.quizzes.weight}%):</strong> {breakdown.components.quizzes.rawPct}% × {breakdown.components.quizzes.weight}% = {breakdown.components.quizzes.contribution} composite points</li>
-              <li><strong className="text-slate-700 dark:text-slate-200">Written Assignments ({breakdown.components.assignments.weight}%):</strong> {breakdown.components.assignments.rawPct}% × {breakdown.components.assignments.weight}% = {breakdown.components.assignments.contribution} composite points</li>
+              <li><strong className="text-slate-700 dark:text-slate-200">Quizzes & Exams ({breakdown.components.quizzes.weight}%):</strong> {breakdown.components.quizzes.rawPct}% × {breakdown.components.quizzes.weight}% = {breakdown.components.quizzes.contribution} composite points</li>
               <li><strong className="text-slate-700 dark:text-slate-200">Class Attendance ({breakdown.components.attendance.weight}%):</strong> {breakdown.components.attendance.rawPct}% × {breakdown.components.attendance.weight}% = {breakdown.components.attendance.contribution} composite points</li>
               <li><strong className="text-slate-700 dark:text-slate-200">Scripture Memorization ({breakdown.components.scriptureRecitation.weight}%):</strong> {breakdown.components.scriptureRecitation.rawPct}% × {breakdown.components.scriptureRecitation.weight}% = {breakdown.components.scriptureRecitation.contribution} composite points</li>
             </ul>

@@ -29,8 +29,10 @@ import {
   CheckCircle2,
   HardDriveDownload,
   FileDown,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
+import { ResourceQuickPreviewModal } from './ResourceQuickPreviewModal';
 import { LearningResource, POPULAR_THEOLOGICAL_TAGS } from '../types';
 import { useLibrarySearch, ContinueLearningItem } from '../hooks/useLibrarySearch';
 import { FilterDrawer } from './FilterDrawer';
@@ -159,6 +161,7 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
   const [downloadRefreshKey, setDownloadRefreshKey] = useState(0);
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
   const [processingDownloadIds, setProcessingDownloadIds] = useState<Set<string>>(new Set());
+  const [quickPreviewResource, setQuickPreviewResource] = useState<LearningResource | null>(null);
 
   // Load downloaded IDs from localStorage
   useEffect(() => {
@@ -700,6 +703,19 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
                           </button>
                         )}
 
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickPreviewResource(resource);
+                          }}
+                          className="px-2 py-1 rounded-lg text-[11px] font-bold text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/80 transition-all flex items-center gap-1 cursor-pointer"
+                          title="Quick Preview synopsis and metadata"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Quick Preview</span>
+                        </button>
+
                         <div className="flex items-center gap-1 text-amber-400 font-bold text-xs group-hover:translate-x-1 transition-transform">
                           <span>Open</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -779,6 +795,17 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
                             )}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickPreviewResource(item.resource);
+                          }}
+                          className="p-1.5 rounded-lg text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/80 transition-colors cursor-pointer"
+                          title="Quick Preview"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                         <span className="text-xs font-bold font-mono text-amber-400">
                           {item.progressPercent}%
                         </span>
@@ -1206,6 +1233,18 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
                             )}
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickPreviewResource(res);
+                          }}
+                          className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-800/80 transition-all flex items-center gap-1 cursor-pointer"
+                          title="Quick Preview synopsis and metadata"
+                        >
+                          <Eye className="w-3 h-3 text-indigo-400" />
+                          <span>Preview</span>
+                        </button>
                         <div className="flex items-center gap-1 text-amber-400 font-bold group-hover:translate-x-1 transition-transform">
                           <span>Read</span>
                           <ArrowRight className="w-3 h-3" />
@@ -1231,6 +1270,15 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
         availableCategories={availableCategories}
         availableInstructors={availableInstructors}
         totalResultsCount={searchResults.length}
+      />
+
+      {/* Resource Quick Preview Modal */}
+      <ResourceQuickPreviewModal
+        resource={quickPreviewResource}
+        isOpen={!!quickPreviewResource}
+        onClose={() => setQuickPreviewResource(null)}
+        onSelectResource={onSelectResource}
+        onDownloadResource={handleDownloadResource}
       />
     </div>
   );
