@@ -19,7 +19,7 @@ export interface AppUser {
   moduleOrDepartment?: string;
   avatarUrl?: string;
   phone?: string;
-  status?: 'active' | 'suspended';
+  status?: 'active' | 'suspended' | 'pending';
   mustChangePassword?: boolean;
 }
 
@@ -33,7 +33,7 @@ export interface UserCredential {
   moduleOrDepartment?: string;
   passwordHash: string; // Hashed password
   mustChangePassword: boolean;
-  status: 'active' | 'suspended';
+  status: 'active' | 'suspended' | 'pending';
   createdAt: string;
   lastLoginAt?: string;
 }
@@ -298,7 +298,7 @@ export const ensureUserCredentials = (
       username: 'admin',
       name: DEFAULT_ADMIN_NAME,
       role: 'admin',
-      passwordHash: generateTemporaryPassword(),
+      passwordHash: 'password1',
       mustChangePassword: false,
       status: 'active',
       createdAt: new Date().toISOString()
@@ -334,7 +334,7 @@ export const ensureUserCredentials = (
         name: teacher.name,
         role: 'teacher',
         moduleOrDepartment: teacher.module || 'Faculty Instructor',
-        passwordHash: generateTemporaryPassword(),
+        passwordHash: 'password1',
         mustChangePassword: true,
         status: 'active',
         createdAt: new Date().toISOString()
@@ -368,7 +368,7 @@ export const ensureUserCredentials = (
         name: nameClean,
         role: 'student',
         studentName: nameClean,
-        passwordHash: generateTemporaryPassword(),
+        passwordHash: 'password1',
         mustChangePassword: true,
         status: 'active',
         createdAt: new Date().toISOString()

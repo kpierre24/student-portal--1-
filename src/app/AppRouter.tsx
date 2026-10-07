@@ -377,6 +377,15 @@ export function AppRouter() {
           setPayments: state.setPayments,
           onDeleteStudent: state.handleDeleteStudent,
           onRestoreStudent: state.handleRestoreStudent,
+          tuitionSheetUrl: state.tuitionSheetUrl,
+          setTuitionSheetUrl: state.setTuitionSheetUrl,
+          lastTuitionSyncedTime: state.lastTuitionSyncedTime,
+          isTuitionLoading: state.isTuitionLoading,
+          tuitionSyncStats: state.tuitionSyncStats,
+          manualTuitionOnly: state.manualTuitionOnly,
+          setManualTuitionOnly: state.setManualTuitionOnly,
+          onSyncTuitionSheet: state.handleSyncTuitionSheet,
+          mainSheetUrl: state.sheetUrl,
         };
 
       case 'messages':

@@ -7,11 +7,13 @@ import { createStudentSummaryFromForm } from '../services/studentsService';
 export interface UseStudentMutationsProps {
   students: StudentSummary[];
   onStudentsChange?: (updatedStudents: StudentSummary[]) => void;
+  onDeleteStudent?: (studentIdentifier: string) => void;
 }
 
 export function useStudentMutations({
   students,
   onStudentsChange,
+  onDeleteStudent,
 }: UseStudentMutationsProps) {
   const saveStudent = useCallback(
     (formData: StudentFormData): StudentSummary => {
@@ -39,19 +41,24 @@ export function useStudentMutations({
   const deleteStudent = useCallback(
     (studentIdOrName: string) => {
       const studentToDelete = students.find(
-        (s) => s.id === studentIdOrName || s.name === studentIdOrName
+        (s) => s.id === studentIdOrName || s.studentId === studentIdOrName || s.name === studentIdOrName
       );
 
-      if (!studentToDelete) return;
+      const targetIdentifier = studentToDelete ? (studentToDelete.studentId || studentToDelete.id || studentToDelete.name) : studentIdOrName;
 
       const updatedList = students.filter(
-        (s) => s.id !== studentIdOrName && s.name !== studentIdOrName
+        (s) => s.id !== targetIdentifier && s.studentId !== targetIdentifier && s.name !== studentToDelete?.name && s.name !== studentIdOrName
       );
 
       onStudentsChange?.(updatedList);
-      toast.info(`Student profile for ${studentToDelete.name} removed.`);
+
+      if (onDeleteStudent) {
+        onDeleteStudent(targetIdentifier);
+      } else {
+        toast.info(`Student profile for ${studentToDelete?.name || studentIdOrName} removed.`);
+      }
     },
-    [students, onStudentsChange]
+    [students, onStudentsChange, onDeleteStudent]
   );
 
   return {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   BookOpen,
@@ -25,13 +25,87 @@ import {
   ChevronRight,
   Bookmark,
   SlidersHorizontal,
-  FolderHeart
+  FolderHeart,
+  CheckCircle2,
+  HardDriveDownload,
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import { LearningResource, POPULAR_THEOLOGICAL_TAGS } from '../types';
 import { useLibrarySearch, ContinueLearningItem } from '../hooks/useLibrarySearch';
 import { FilterDrawer } from './FilterDrawer';
-import { toggleFavoriteResource, isResourceFavorite } from '../services/favoritesService';
+import { 
+  toggleFavoriteResource, 
+  isResourceFavorite,
+  getDownloadedResourceIds,
+  recordDownloadedResource
+} from '../services/favoritesService';
 import { formatTime } from '../utils/completionRules';
+
+export interface DownloadableInfo {
+  isDownloadable: boolean;
+  label: string;
+  formatName: string;
+  type: string;
+}
+
+export function getDownloadableInfo(resource: LearningResource | any): DownloadableInfo {
+  if (!resource) {
+    return { isDownloadable: false, label: '', formatName: '', type: '' };
+  }
+
+  const type = (resource.type || '').toLowerCase();
+  const format = (resource.format || '').toUpperCase();
+  const url = resource.downloadUrl || resource.url || resource.fileDataUrl || '';
+  const explicitDownloadable = resource.isDownloadable;
+
+  // If explicitly disabled
+  if (explicitDownloadable === false) {
+    return { isDownloadable: false, label: '', formatName: '', type };
+  }
+
+  // Pure external web links and websites
+  if (type === 'link' || type === 'website') {
+    return { isDownloadable: false, label: '', formatName: '', type };
+  }
+
+  // Scripture references without dedicated file attachments
+  if (type === 'scripture' && !resource.fileDataUrl && !resource.downloadUrl) {
+    return { isDownloadable: false, label: '', formatName: '', type };
+  }
+
+  // PDF Documents
+  if (type === 'pdf' || format === 'PDF' || url.endsWith('.pdf')) {
+    return { isDownloadable: true, label: 'Download PDF', formatName: 'PDF', type: 'pdf' };
+  }
+
+  // Audio / Sermons / MP3 / Podcasts
+  if (type === 'audio' || format === 'MP3' || format === 'WAV' || format === 'M4A' || url.endsWith('.mp3')) {
+    return { isDownloadable: true, label: 'Download Audio', formatName: format || 'MP3', type: 'audio' };
+  }
+
+  // Infographics, charts, diagrams
+  if (type === 'image' || format === 'PNG' || format === 'JPG' || format === 'JPEG' || format === 'WEBP') {
+    return { isDownloadable: true, label: 'Download Image', formatName: format || 'PNG', type: 'image' };
+  }
+
+  // Documents / Office files
+  if (type === 'document' || type === 'presentation' || format === 'DOCX' || format === 'PPTX' || format === 'TXT') {
+    return { isDownloadable: true, label: 'Download Document', formatName: format || 'DOC', type: 'document' };
+  }
+
+  // Video with direct media file (not purely YouTube/Vimeo web stream)
+  if ((type === 'video' || format === 'VIDEO' || format === 'MP4') && (resource.fileDataUrl || (url && !url.includes('youtube.com') && !url.includes('youtu.be') && !url.includes('vimeo.com')))) {
+    return { isDownloadable: true, label: 'Download Video', formatName: 'MP4', type: 'video' };
+  }
+
+  // Official study guides, syllabus, lectures with notes/content
+  if (explicitDownloadable === true || resource.fullContent || resource.summary || resource.fileDataUrl || resource.downloadUrl) {
+    return { isDownloadable: true, label: 'Download Guide', formatName: 'GUIDE', type: 'guide' };
+  }
+
+  return { isDownloadable: false, label: '', formatName: '', type };
+}
 
 interface LibraryHomepageProps {
   resources: LearningResource[] | any[];
@@ -39,6 +113,7 @@ interface LibraryHomepageProps {
   onOpenAddResource?: () => void;
   onOpenMyLibrary?: (section?: 'favorites' | 'recent' | 'continue_learning' | 'downloads') => void;
   onSelectCourse?: (courseCode: string, courseTitle: string) => void;
+  onDownloadResource?: (resource: LearningResource | any, e?: React.MouseEvent) => void;
   userRole?: string;
 }
 
@@ -48,6 +123,7 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
   onOpenAddResource,
   onOpenMyLibrary,
   onSelectCourse,
+  onDownloadResource,
   userRole
 }) => {
   const {
@@ -80,12 +156,122 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
 
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [favoriteRefreshKey, setFavoriteRefreshKey] = useState(0);
+  const [downloadRefreshKey, setDownloadRefreshKey] = useState(0);
+  const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
+  const [processingDownloadIds, setProcessingDownloadIds] = useState<Set<string>>(new Set());
+
+  // Load downloaded IDs from localStorage
+  useEffect(() => {
+    setDownloadedIds(getDownloadedResourceIds());
+  }, [downloadRefreshKey]);
 
   const handleToggleFavorite = (e: React.MouseEvent, resId: string) => {
     e.stopPropagation();
     toggleFavoriteResource(resId);
     setFavoriteRefreshKey((k) => k + 1);
   };
+
+  // Direct download trigger with client-side file builder fallback and processing spinner
+  const handleDownloadResource = async (resource: LearningResource | any, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    const resId = resource?.id;
+    if (!resId) return;
+
+    // Set resource as processing to trigger subtle loading spinner
+    setProcessingDownloadIds((prev) => new Set(prev).add(resId));
+
+    try {
+      if (onDownloadResource) {
+        await Promise.resolve(onDownloadResource(resource, e));
+      }
+
+      // Small async yielding window (450ms) to ensure smooth spinner animation
+      // and allow the browser to package and generate the blob/document seamlessly
+      await new Promise((resolve) => setTimeout(resolve, 450));
+
+      // Client-side file generation & download
+      if (resource.fileDataUrl) {
+        const link = document.createElement('a');
+        link.href = resource.fileDataUrl;
+        link.download = resource.fileName || `${(resource.title || 'Resource').replace(/[^a-zA-Z0-9_-]/g, '_')}.${(resource.format || resource.type || 'pdf').toLowerCase()}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (resource.downloadUrl && !resource.downloadUrl.includes('youtube.com') && !resource.downloadUrl.includes('youtu.be')) {
+        const link = document.createElement('a');
+        link.href = resource.downloadUrl;
+        link.download = resource.fileName || `${(resource.title || 'Resource').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // Generate structured lesson study guide text/markdown file
+        const fileText = `=====================================================
+HTEIM SCHOOL OF MINISTRY - OFFICIAL LESSON RESOURCE
+=====================================================
+TITLE: ${resource.title || 'Untitled Resource'}
+AUTHOR / INSTRUCTOR: ${resource.author || resource.instructor || resource.uploadedBy || 'HTEIM Faculty'}
+COURSE CODE: ${resource.courseCode || resource.courseId || 'SOM-CORE'}
+CATEGORY: ${resource.category || 'Curriculum Material'}
+TYPE: ${(resource.type || 'Study Guide').toUpperCase()}
+=====================================================
+
+DESCRIPTION & SUMMARY:
+-----------------------------------------------------
+${resource.description || resource.summary || 'Official theological curriculum material for HTEIM School of Ministry.'}
+
+${resource.keyTakeaways && resource.keyTakeaways.length > 0 ? `KEY TAKEAWAYS & OUTCOMES:
+${resource.keyTakeaways.map((k: string, i: number) => `${i + 1}. ${k}`).join('\n')}
+-----------------------------------------------------` : ''}
+
+${resource.scriptureReferences && resource.scriptureReferences.length > 0 ? `SCRIPTURE REFERENCES:
+${resource.scriptureReferences.map((s: string) => `• ${s}`).join('\n')}
+-----------------------------------------------------` : ''}
+
+LESSON CONTENT / STUDY NOTES:
+-----------------------------------------------------
+${resource.fullContent || resource.content || 'Full lesson document content loaded for student reference.'}
+`;
+
+        const blob = new Blob([fileText], { type: 'text/plain;charset=utf-8' });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${(resource.title || 'HTEIM_Resource').replace(/[^a-zA-Z0-9_-]/g, '_')}_StudyGuide.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }
+
+      // Persist download in favoritesService / localStorage
+      recordDownloadedResource(resource.id);
+      setDownloadedIds((prev) => (prev.includes(resource.id) ? prev : [resource.id, ...prev]));
+      setDownloadRefreshKey((prev) => prev + 1);
+    } finally {
+      // Clear processing status
+      setProcessingDownloadIds((prev) => {
+        const next = new Set(prev);
+        next.delete(resId);
+        return next;
+      });
+    }
+  };
+
+  // Compute downloaded resources list from all resources
+  const downloadedResources = downloadedIds
+    .map((id) => resources.find((r) => r.id === id))
+    .filter(Boolean) as LearningResource[];
+
+  // Compute top downloadable curriculum items for empty state recommendations
+  const recommendedDownloadables = resources
+    .filter((r) => getDownloadableInfo(r).isDownloadable)
+    .slice(0, 4);
 
   // Pre-defined Core Curriculum Tracks for "My Courses"
   const courseTracks = [
@@ -192,19 +378,35 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
             </p>
           </div>
 
-          {/* Quick Access to My Library */}
-          {onOpenMyLibrary && (
-            <div className="flex items-center gap-2 pt-1 md:pt-0">
-              <button
-                type="button"
-                onClick={() => onOpenMyLibrary('favorites')}
-                className="min-h-[44px] px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm hover:border-amber-500/40 cursor-pointer active:opacity-80"
-              >
-                <FolderHeart className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>My Library</span>
-              </button>
-            </div>
-          )}
+          {/* Quick Access to My Library & My Downloads */}
+          <div className="flex items-center gap-2 pt-1 md:pt-0 flex-wrap">
+            {onOpenMyLibrary && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onOpenMyLibrary('favorites')}
+                  className="min-h-[44px] px-3.5 sm:px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm hover:border-amber-500/40 cursor-pointer active:opacity-80"
+                >
+                  <FolderHeart className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>My Library</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenMyLibrary('downloads')}
+                  className="min-h-[44px] px-3.5 sm:px-4 py-2.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm hover:border-emerald-500/40 cursor-pointer active:opacity-80"
+                >
+                  <HardDriveDownload className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>My Downloads</span>
+                  {downloadedResources.length > 0 && (
+                    <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded-md text-[10px] font-mono font-black border border-emerald-500/30">
+                      {downloadedResources.length}
+                    </span>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Prominent Search Bar (Phase 14 & 15) */}
@@ -379,6 +581,8 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
               {searchResults.map(({ resource, matchedFields, snippet }) => {
                 const badge = getTypeBadge(resource);
                 const isSaved = isResourceFavorite(resource.id);
+                const isDownloaded = downloadedIds.includes(resource.id);
+                const downloadInfo = getDownloadableInfo(resource);
                 const InstructorIcon = User;
                 const authorName =
                   (resource as any).instructor ||
@@ -395,12 +599,21 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 ${badge.color}`}
-                        >
-                          <badge.icon className="w-3 h-3" />
-                          <span>{badge.label}</span>
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 ${badge.color}`}
+                          >
+                            <badge.icon className="w-3 h-3" />
+                            <span>{badge.label}</span>
+                          </span>
+
+                          {isDownloaded && (
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>Downloaded</span>
+                            </span>
+                          )}
+                        </div>
 
                         <div className="flex items-center gap-2">
                           {matchedFields.length > 0 && query && (
@@ -443,15 +656,54 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                       )}
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-                      <div className="flex items-center gap-1.5 truncate max-w-[200px]">
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 gap-2">
+                      <div className="flex items-center gap-1.5 truncate max-w-[170px]">
                         <InstructorIcon className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
                         <span className="truncate">{authorName}</span>
                       </div>
 
-                      <div className="flex items-center gap-1 text-amber-400 font-bold text-xs group-hover:translate-x-1 transition-transform">
-                        <span>Open</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-2 shrink-0">
+                        {downloadInfo.isDownloadable && (
+                          <button
+                            type="button"
+                            disabled={processingDownloadIds.has(resource.id)}
+                            onClick={(e) => handleDownloadResource(resource, e)}
+                            title={
+                              processingDownloadIds.has(resource.id)
+                                ? 'Preparing download...'
+                                : isDownloaded
+                                ? 'Downloaded (click to download again)'
+                                : downloadInfo.label
+                            }
+                            className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer active:opacity-80 disabled:opacity-75 disabled:cursor-wait ${
+                              isDownloaded
+                                ? 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20'
+                                : 'text-slate-300 hover:text-amber-300 bg-slate-800 hover:bg-slate-700 border border-slate-700/60'
+                            }`}
+                          >
+                            {processingDownloadIds.has(resource.id) ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+                                <span className="hidden xs:inline">Preparing...</span>
+                              </>
+                            ) : isDownloaded ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span className="hidden xs:inline">Downloaded</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span className="hidden xs:inline">{downloadInfo.label}</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        <div className="flex items-center gap-1 text-amber-400 font-bold text-xs group-hover:translate-x-1 transition-transform">
+                          <span>Open</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -478,6 +730,9 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
               {continueLearningList.map((item) => {
                 const isSaved = isResourceFavorite(item.resource.id);
+                const isDownloaded = downloadedIds.includes(item.resource.id);
+                const downloadInfo = getDownloadableInfo(item.resource);
+
                 return (
                   <div
                     key={item.resource.id}
@@ -499,6 +754,31 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        {downloadInfo.isDownloadable && (
+                          <button
+                            type="button"
+                            disabled={processingDownloadIds.has(item.resource.id)}
+                            onClick={(e) => handleDownloadResource(item.resource, e)}
+                            title={
+                              processingDownloadIds.has(item.resource.id)
+                                ? 'Preparing download...'
+                                : isDownloaded
+                                ? 'Downloaded'
+                                : downloadInfo.label
+                            }
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-75 disabled:cursor-wait ${
+                              isDownloaded ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800'
+                            }`}
+                          >
+                            {processingDownloadIds.has(item.resource.id) ? (
+                              <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                            ) : isDownloaded ? (
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
                         <span className="text-xs font-bold font-mono text-amber-400">
                           {item.progressPercent}%
                         </span>
@@ -582,7 +862,173 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
             </div>
           </section>
 
-          {/* Section C: Browse Resources (Phase 13) */}
+          {/* Section C: My Downloads & Offline Files */}
+          <section id="my-downloads-section" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HardDriveDownload className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-sm font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <span>My Downloads</span>
+                  {downloadedResources.length > 0 && (
+                    <span className="px-2 py-0.2 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-mono font-black">
+                      {downloadedResources.length}
+                    </span>
+                  )}
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Offline Study Materials</span>
+                {onOpenMyLibrary && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenMyLibrary('downloads')}
+                    className="text-xs text-emerald-400 hover:text-emerald-300 font-bold transition-colors cursor-pointer"
+                  >
+                    View All →
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {downloadedResources.length === 0 ? (
+              <div className="bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md">
+                <div className="space-y-2 max-w-xl">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                    <FileDown className="w-4 h-4 shrink-0" />
+                    <span>Download Theological Resources for Offline Access</span>
+                  </div>
+                  <h3 className="text-base font-bold text-white">No downloaded materials in your local storage</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Download course syllabi, sermon audio recordings, and foundational ministry study guides to read and study anytime without an active internet connection.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+                  {recommendedDownloadables.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={processingDownloadIds.has(recommendedDownloadables[0].id)}
+                      onClick={() => handleDownloadResource(recommendedDownloadables[0])}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-75 disabled:cursor-wait"
+                    >
+                      {processingDownloadIds.has(recommendedDownloadables[0].id) ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin shrink-0 text-white" />
+                          <span>Preparing Download...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 shrink-0" />
+                          <span>Download Sample Guide</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {onOpenMyLibrary && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenMyLibrary('downloads')}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Open Downloads Manager</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {downloadedResources.map((res) => {
+                  const badge = getTypeBadge(res);
+                  const isSaved = isResourceFavorite(res.id);
+                  const downloadInfo = getDownloadableInfo(res);
+
+                  return (
+                    <div
+                      key={res.id}
+                      onClick={() => onSelectResource(res)}
+                      className="group bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3 shadow-md hover:shadow-xl hover:scale-[1.01]"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 ${badge.color}`}
+                          >
+                            <badge.icon className="w-3 h-3" />
+                            <span>{badge.label}</span>
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>Downloaded</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleFavorite(e, res.id)}
+                              title={isSaved ? 'Remove from Saved' : 'Save to My Library'}
+                              className={`p-1 rounded-lg transition-colors ${
+                                isSaved ? 'text-rose-400' : 'text-slate-500 hover:text-slate-300'
+                              }`}
+                            >
+                              <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
+                          {res.title}
+                        </h3>
+
+                        <p className="text-[11px] text-slate-400 line-clamp-2">
+                          {res.description || (res as any).courseName || res.courseId || 'Offline theological resource'}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 gap-2">
+                        <span className="truncate max-w-[140px]">
+                          {(res as any).instructor || res.author || 'HTEIM Faculty'}
+                        </span>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            disabled={processingDownloadIds.has(res.id)}
+                            onClick={(e) => handleDownloadResource(res, e)}
+                            title={
+                              processingDownloadIds.has(res.id)
+                                ? 'Preparing download...'
+                                : 'Re-download this file'
+                            }
+                            className="px-2 py-1 rounded-lg text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-75 disabled:cursor-wait"
+                          >
+                            {processingDownloadIds.has(res.id) ? (
+                              <>
+                                <Loader2 className="w-3 h-3 text-emerald-400 animate-spin shrink-0" />
+                                <span>Preparing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-3 h-3 text-emerald-400" />
+                                <span>Save Again</span>
+                              </>
+                            )}
+                          </button>
+
+                          <div className="flex items-center gap-1 text-amber-400 font-bold text-xs group-hover:translate-x-1 transition-transform">
+                            <span>Open</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Section D: Browse Resources (Phase 13) */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -668,7 +1114,7 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
             </div>
           </section>
 
-          {/* Section D: Recently Added (Phase 13) */}
+          {/* Section E: Recently Added (Phase 13) */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -684,6 +1130,8 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
               {recentlyAdded.map((res) => {
                 const badge = getTypeBadge(res);
                 const isSaved = isResourceFavorite(res.id);
+                const isDownloaded = downloadedIds.includes(res.id);
+                const downloadInfo = getDownloadableInfo(res);
 
                 return (
                   <div
@@ -692,7 +1140,7 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                     className="group bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-3 shadow-md hover:shadow-xl hover:scale-[1.02]"
                   >
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <span
                           className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border flex items-center gap-1 ${badge.color}`}
                         >
@@ -700,15 +1148,22 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                           <span>{badge.label}</span>
                         </span>
 
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleFavorite(e, res.id)}
-                          className={`p-1 rounded-lg transition-colors ${
-                            isSaved ? 'text-rose-400' : 'text-slate-500 hover:text-slate-300'
-                          }`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {isDownloaded && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                              ✓
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFavorite(e, res.id)}
+                            className={`p-1 rounded-lg transition-colors ${
+                              isSaved ? 'text-rose-400' : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                          </button>
+                        </div>
                       </div>
 
                       <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
@@ -720,11 +1175,41 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500">
-                      <span>{(res as any).instructor || res.author || 'HTEIM Faculty'}</span>
-                      <div className="flex items-center gap-1 text-amber-400 font-bold group-hover:translate-x-1 transition-transform">
-                        <span>Read</span>
-                        <ArrowRight className="w-3 h-3" />
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-500 gap-2">
+                      <span className="truncate max-w-[120px]">
+                        {(res as any).instructor || res.author || 'HTEIM Faculty'}
+                      </span>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {downloadInfo.isDownloadable && (
+                          <button
+                            type="button"
+                            disabled={processingDownloadIds.has(res.id)}
+                            onClick={(e) => handleDownloadResource(res, e)}
+                            title={
+                              processingDownloadIds.has(res.id)
+                                ? 'Preparing download...'
+                                : isDownloaded
+                                ? 'Downloaded (click to download again)'
+                                : downloadInfo.label
+                            }
+                            className={`p-1 rounded-md transition-colors cursor-pointer disabled:opacity-75 disabled:cursor-wait ${
+                              isDownloaded
+                                ? 'text-emerald-400 bg-emerald-500/10'
+                                : 'text-slate-400 hover:text-amber-400 hover:bg-slate-800'
+                            }`}
+                          >
+                            {processingDownloadIds.has(res.id) ? (
+                              <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                        <div className="flex items-center gap-1 text-amber-400 font-bold group-hover:translate-x-1 transition-transform">
+                          <span>Read</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </div>
                       </div>
                     </div>
                   </div>

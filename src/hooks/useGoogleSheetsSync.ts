@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ClassDay, AttendanceRecord, MergeConflict, Cohort, RecentSheet } from '../types';
+import { ClassDay, AttendanceRecord, MergeConflict, Cohort, RecentSheet, PaymentRecord } from '../types';
 import { isExcludedStudent, getCanonicalNamesMap, normalizeStudentName, MANUAL_ALIASES } from '../lib/studentNames';
 import { isObsoleteLegacyClassDay, isMatchingLesson } from '../data';
 import { MASTER_ENROLLED_STUDENTS } from '../data/curriculum';
@@ -9,6 +9,14 @@ import {
   extractSpreadsheetId,
   fetchPublicSpreadsheetData,
 } from '../lib/sheets';
+import {
+  isTuitionSheetTab,
+  parseTuitionSheetRows,
+  fetchTuitionSpreadsheet,
+  mergeTuitionRecords,
+  persistTuitionRecords,
+  ParsedTuitionResult,
+} from '../lib/tuitionSheets';
 import { displayErrorToUser } from '../lib/errorHandler';
 import { logActivity } from '../lib/auditLogger';
 
@@ -21,6 +29,8 @@ interface UseGoogleSheetsSyncProps {
   classDays: ClassDay[];
   setClassDays: React.Dispatch<React.SetStateAction<ClassDay[]>>;
   deletedClassDayIds: string[];
+  payments?: PaymentRecord[];
+  setPayments?: React.Dispatch<React.SetStateAction<PaymentRecord[]>>;
   setError: (err: string | null) => void;
   setIsLoading: (loading: boolean) => void;
   isLoading: boolean;
@@ -36,6 +46,8 @@ export const useGoogleSheetsSync = ({
   classDays,
   setClassDays,
   deletedClassDayIds,
+  payments = [],
+  setPayments,
   setError,
   setIsLoading,
   isLoading,
@@ -49,6 +61,23 @@ export const useGoogleSheetsSync = ({
     }
     return saved;
   });
+
+  // Dedicated Tuition Sheet URL
+  const [tuitionSheetUrl, setTuitionSheetUrl] = useState<string>(() => {
+    return localStorage.getItem('hteim_tuition_sheet_url') || '';
+  });
+
+  const [lastTuitionSyncedTime, setLastTuitionSyncedTime] = useState<string | null>(() => {
+    return localStorage.getItem('hteim_last_tuition_synced_time');
+  });
+
+  const [isTuitionLoading, setIsTuitionLoading] = useState<boolean>(false);
+  const [tuitionSyncStats, setTuitionSyncStats] = useState<{
+    totalStudents: number;
+    totalBilled: number;
+    totalPaid: number;
+    totalBalance: number;
+  } | null>(null);
 
   // Recent Sheets Shortcuts
   const [recentSheets, setRecentSheets] = useState<RecentSheet[]>(() => {
@@ -80,6 +109,26 @@ export const useGoogleSheetsSync = ({
     return (saved as 'sheets' | 'manual' | 'prompt') || 'manual';
   });
 
+  // Manual Tuition Mode (User Rule: "Do not pull tuition from google sheets I will manually update it")
+  const [manualTuitionOnly, setManualTuitionOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem('hteim_manual_tuition_only');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hteim_manual_tuition_only', JSON.stringify(manualTuitionOnly));
+  }, [manualTuitionOnly]);
+
+  // Manual Attendance Mode (User Rule: "let attendance capture be a manual process from now on... attendance is no longer synced from the google sheet")
+  const [manualAttendanceOnly, setManualAttendanceOnly] = useState<boolean>(() => {
+    const saved = localStorage.getItem('hteim_manual_attendance_only');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hteim_manual_attendance_only', JSON.stringify(manualAttendanceOnly));
+  }, [manualAttendanceOnly]);
+
   const [pendingConflicts, setPendingConflicts] = useState<MergeConflict[]>([]);
   const [pendingSyncData, setPendingSyncData] = useState<{
     preservedRecords: AttendanceRecord[];
@@ -93,6 +142,12 @@ export const useGoogleSheetsSync = ({
   useEffect(() => {
     localStorage.setItem('sheetUrl', sheetUrl);
   }, [sheetUrl]);
+
+  useEffect(() => {
+    if (tuitionSheetUrl) {
+      localStorage.setItem('hteim_tuition_sheet_url', tuitionSheetUrl);
+    }
+  }, [tuitionSheetUrl]);
 
   useEffect(() => {
     localStorage.setItem('recentSheets', JSON.stringify(recentSheets));
@@ -139,6 +194,12 @@ export const useGoogleSheetsSync = ({
   const handleLoadSheets = async (e?: React.FormEvent, customUrl?: string) => {
     if (e) e.preventDefault();
 
+    if (manualAttendanceOnly) {
+      // User rule: Attendance capture is a strictly manual process.
+      // Attendance is no longer synced from Google Sheets, keeping all current records intact.
+      return;
+    }
+
     const targetUrl = customUrl || activeCohort?.sheetUrl || sheetUrl;
     if (customUrl) {
       setSheetUrl(customUrl);
@@ -184,13 +245,49 @@ export const useGoogleSheetsSync = ({
       }
 
       const syncedSheetTitles = new Set<string>();
+      const incomingTuitionRecords: PaymentRecord[] = [];
+
       if (batchData.valueRanges) {
         batchData.valueRanges.forEach((rangeData: any, index: number) => {
           const rangeName = rangeData.range || '';
           const sheetTitle = rangeName
             ? rangeName.split('!')[0].replace(/^'|'$/g, '')
             : `Sheet${index + 1}`;
+          
+          if (!rangeData.values || rangeData.values.length === 0) return;
+          const headers = rangeData.values[0] as string[];
+          const rows = rangeData.values.slice(1) as string[][];
+
+          // Check if this sheet is a tuition & fees tab
+          if (isTuitionSheetTab(sheetTitle, headers)) {
+            if (manualTuitionOnly) {
+              // User instruction: "Do not pull tuition from google sheets I will manually update it"
+              return; // Skip adding tuition tab as attendance, and skip pulling tuition data into payments
+            }
+            const parsedTuition = parseTuitionSheetRows(sheetTitle, headers, rows, payments);
+            if (parsedTuition.length > 0) {
+              incomingTuitionRecords.push(...parsedTuition);
+            }
+            return; // Skip adding tuition tab as an attendance class day
+          }
+
           syncedSheetTitles.add(sheetTitle);
+        });
+      }
+
+      // If tuition records were found in the connected sheet, update payments
+      if (incomingTuitionRecords.length > 0 && setPayments) {
+        const mergedTuition = mergeTuitionRecords(payments, incomingTuitionRecords, sheetMergePolicy === 'sheets' ? 'sheets' : 'manual');
+        setPayments(mergedTuition);
+        persistTuitionRecords(mergedTuition);
+        const formattedTuitionTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        setLastTuitionSyncedTime(formattedTuitionTime);
+        localStorage.setItem('hteim_last_tuition_synced_time', formattedTuitionTime);
+        setTuitionSyncStats({
+          totalStudents: mergedTuition.length,
+          totalBilled: mergedTuition.reduce((s, p) => s + (p.totalTuition || 0), 0),
+          totalPaid: mergedTuition.reduce((s, p) => s + (p.amountPaid || 0), 0),
+          totalBalance: mergedTuition.reduce((s, p) => s + Math.max(0, (p.totalTuition || 0) - (p.amountPaid || 0)), 0),
         });
       }
 
@@ -569,9 +666,49 @@ export const useGoogleSheetsSync = ({
     }
   }, [sheetUrl]);
 
+  const handleSyncTuitionSheet = async (customUrl?: string): Promise<ParsedTuitionResult | null> => {
+    if (manualTuitionOnly) {
+      setError('Tuition updates are in Manual Mode. Google Sheets tuition pull is disabled.');
+      return null;
+    }
+    const targetUrl = customUrl || tuitionSheetUrl || sheetUrl;
+    setIsTuitionLoading(true);
+    try {
+      const result = await fetchTuitionSpreadsheet(targetUrl, token, payments);
+      if (setPayments) {
+        const merged = mergeTuitionRecords(payments, result.records, sheetMergePolicy === 'sheets' ? 'sheets' : 'manual');
+        setPayments(merged);
+        persistTuitionRecords(merged);
+      }
+      const formattedTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      setLastTuitionSyncedTime(formattedTime);
+      localStorage.setItem('hteim_last_tuition_synced_time', formattedTime);
+      setTuitionSyncStats({
+        totalStudents: result.totalStudents,
+        totalBilled: result.totalTuitionBilled,
+        totalPaid: result.totalAmountCollected,
+        totalBalance: result.totalOutstandingBalance,
+      });
+      return result;
+    } catch (err: any) {
+      const appErr = displayErrorToUser(err, 'handleSyncTuitionSheet - sync failure', 'network');
+      setError(appErr.userMessage);
+      return null;
+    } finally {
+      setIsTuitionLoading(false);
+    }
+  };
+
   return {
     sheetUrl,
     setSheetUrl,
+    tuitionSheetUrl,
+    setTuitionSheetUrl,
+    lastTuitionSyncedTime,
+    setLastTuitionSyncedTime,
+    isTuitionLoading,
+    tuitionSyncStats,
+    handleSyncTuitionSheet,
     recentSheets,
     setRecentSheets,
     autoSyncInterval,
@@ -584,6 +721,10 @@ export const useGoogleSheetsSync = ({
     setDataSource,
     sheetMergePolicy,
     setSheetMergePolicy,
+    manualTuitionOnly,
+    setManualTuitionOnly,
+    manualAttendanceOnly,
+    setManualAttendanceOnly,
     pendingConflicts,
     setPendingConflicts,
     pendingSyncData,

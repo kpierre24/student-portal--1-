@@ -146,6 +146,8 @@ export type PaymentRecord = {
   moduleTrack: string;
   totalTuition: number;
   amountPaid: number;
+  balanceOwed?: number;
+  balanceDue?: number;
   status: 'Paid In Full' | 'Partial' | 'Past Due' | 'Pending Review';
   lastPaymentDate: string;
   paymentMethod: 'Credit Card' | 'Bank Transfer' | 'Zelle' | 'Check' | 'Scholarship' | 'Cash' | 'PayPal' | 'Stripe';
@@ -760,6 +762,7 @@ export type StudentEnrollmentStatus = 'active' | 'dropped_out' | 'withdrawn' | '
 
 export type StudentSummary = {
   id?: string; // Primary Key (UUID)
+  studentId?: string; // Assigned Permanent Student ID
   name: string; // Display Attribute
   studentNumber?: string;
   totalDays: number;

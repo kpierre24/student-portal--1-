@@ -196,5 +196,97 @@ describe('Library Homepage & Search (Phases 13 & 14)', () => {
       fireEvent.click(card);
       expect(handleSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'res-2' }));
     });
+
+    it('renders "My Downloads" section with offline study files and recommendations', () => {
+      render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          onOpenMyLibrary={vi.fn()}
+        />
+      );
+
+      expect(screen.getAllByText(/My Downloads/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Download Theological Resources for Offline Access/i)).toBeTruthy();
+      expect(screen.getByText(/Download Sample Guide/i)).toBeTruthy();
+    });
+
+    it('displays download indicators and triggers download functionality on downloadable resources', () => {
+      const handleDownload = vi.fn();
+      render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          onDownloadResource={handleDownload}
+        />
+      );
+
+      // Search for downloadable PDF resource
+      const input = screen.getByPlaceholderText(/Search resources by title/i);
+      fireEvent.change(input, { target: { value: 'Introduction to Theology' } });
+
+      expect(screen.getByText('Introduction to Theology & The Godhead')).toBeTruthy();
+      
+      // Look for Download PDF button
+      const downloadBtn = screen.getByText(/Download PDF/i);
+      expect(downloadBtn).toBeTruthy();
+
+      fireEvent.click(downloadBtn);
+      expect(handleDownload).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'res-1' }),
+        expect.anything()
+      );
+    });
+
+    it('renders downloaded resources in "My Downloads" when resources have been downloaded', () => {
+      localStorage.setItem('hteim_library_downloads_ids', JSON.stringify(['res-1', 'res-3']));
+
+      render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          onOpenMyLibrary={vi.fn()}
+        />
+      );
+
+      const downloadsSection = document.getElementById('my-downloads-section');
+      expect(downloadsSection).toBeTruthy();
+      expect(screen.getAllByText('Introduction to Theology & The Godhead').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Biblical Hermeneutics & Exegesis Principles').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Downloaded').length).toBeGreaterThan(0);
+    });
+
+    it('displays subtle loading spinner and disabled state while resource download is being processed', () => {
+      // Mock long-running or async download processing
+      let resolveDownload: () => void = () => {};
+      const pendingPromise = new Promise<void>((resolve) => {
+        resolveDownload = resolve;
+      });
+      const handleDownload = vi.fn().mockReturnValue(pendingPromise);
+
+      render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          onDownloadResource={handleDownload}
+        />
+      );
+
+      // Search for downloadable PDF resource
+      const input = screen.getByPlaceholderText(/Search resources by title/i);
+      fireEvent.change(input, { target: { value: 'Introduction to Theology' } });
+
+      const downloadBtn = screen.getByText(/Download PDF/i);
+      expect(downloadBtn).toBeTruthy();
+
+      // Trigger download
+      fireEvent.click(downloadBtn);
+
+      // Verify that the button switches to processing state with spinner and "Preparing..."
+      expect(screen.getByText(/Preparing\.\.\./i)).toBeTruthy();
+
+      // Resolve the download promise
+      resolveDownload();
+    });
   });
 });

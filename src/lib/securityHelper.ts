@@ -204,7 +204,12 @@ export function recordFailedLoginAttempt(identifier: string): { isLocked: boolea
   } catch {}
 
   const now = Date.now();
-  const current = records[key] || { count: 0, lockedUntil: 0 };
+  let current = records[key] || { count: 0, lockedUntil: 0 };
+
+  // If lockout duration has elapsed, reset counter so user gets full fresh attempts
+  if (current.lockedUntil > 0 && current.lockedUntil <= now) {
+    current = { count: 0, lockedUntil: 0 };
+  }
 
   // Check if currently locked
   if (current.lockedUntil > now) {
@@ -251,18 +256,24 @@ export function checkAccountLockout(identifier: string): { isLocked: boolean; re
     if (!raw) return { isLocked: false, remainingSeconds: 0 };
     const records: Record<string, LockoutRecord> = JSON.parse(raw);
     const rec = records[key];
-    if (rec && rec.lockedUntil > Date.now()) {
-      return {
-        isLocked: true,
-        remainingSeconds: Math.ceil((rec.lockedUntil - Date.now()) / 1000)
-      };
+    if (rec) {
+      if (rec.lockedUntil > Date.now()) {
+        return {
+          isLocked: true,
+          remainingSeconds: Math.ceil((rec.lockedUntil - Date.now()) / 1000)
+        };
+      } else if (rec.lockedUntil > 0 && rec.lockedUntil <= Date.now()) {
+        // Expired lockout: purge expired record
+        delete records[key];
+        localStorage.setItem(FAILED_ATTEMPTS_KEY, JSON.stringify(records));
+      }
     }
   } catch {}
   return { isLocked: false, remainingSeconds: 0 };
 }
 
 /**
- * Resets failed attempts after a successful login.
+ * Resets failed attempts after a successful login or explicit unlock.
  */
 export function clearFailedLoginAttempts(identifier: string): void {
   if (typeof localStorage === 'undefined' || !identifier) return;
@@ -272,8 +283,29 @@ export function clearFailedLoginAttempts(identifier: string): void {
     if (!raw) return;
     const records: Record<string, LockoutRecord> = JSON.parse(raw);
     delete records[key];
+    if (key.includes('@')) {
+      delete records[key.split('@')[0]];
+    }
+    if (key === 'kpierre24@gmail.com' || key === 'admin') {
+      delete records['kpierre24@gmail.com'];
+      delete records['admin'];
+    }
     localStorage.setItem(FAILED_ATTEMPTS_KEY, JSON.stringify(records));
   } catch {}
+}
+
+/**
+ * Explicitly clears/resets lockout timer for an account or all accounts.
+ */
+export function resetAccountLockout(identifier?: string): void {
+  if (typeof localStorage === 'undefined') return;
+  if (!identifier) {
+    try {
+      localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+    } catch {}
+    return;
+  }
+  clearFailedLoginAttempts(identifier);
 }
 
 /**

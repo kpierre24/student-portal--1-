@@ -39,6 +39,13 @@ import { migrateLocalStorageProfilePicturesToSupabase } from '../lib/supabaseCli
 import { NotificationPreferencesModal } from './NotificationPreferencesModal';
 import { registerBiometricCredential, isBiometricAvailable, getEnrolledBiometricProfiles, removeBiometricCredential, isBiometricEnrolledForUser } from '../lib/biometricAuth';
 import { triggerHapticFeedback } from '../lib/capacitorBridge';
+import { 
+  getAppAuthConfig, 
+  saveAppAuthConfig, 
+  testSupabaseConnector, 
+  SupabaseConnectorHealth, 
+  AppAuthConfig 
+} from '../services/authService';
 
 export type ThemeMode = 'light' | 'dark' | 'system' | 'high-contrast';
 
@@ -220,6 +227,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [developerMode, setDeveloperMode] = useState<boolean>(() => {
     return localStorage.getItem('hteim_developer_mode') === 'true';
   });
+  const [authConfig, setAuthConfig] = useState<AppAuthConfig>(() => getAppAuthConfig());
+  const [connectorHealth, setConnectorHealth] = useState<SupabaseConnectorHealth | null>(null);
+  const [isTestingConnector, setIsTestingConnector] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    testSupabaseConnector().then(setConnectorHealth).catch(() => {});
+  }, []);
 
   // Save changes to localStorage automatically only if user is an admin
   React.useEffect(() => {
@@ -969,6 +983,119 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           {photoMigrationStatus}
                         </p>
                       )}
+
+                      <hr className="border-slate-200" />
+
+                      {/* Supabase Connectors & App Authentication Setup */}
+                      <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-900/60 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h4 className="font-bold text-indigo-950 dark:text-indigo-200 text-xs flex items-center gap-1.5">
+                              <Database className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                              Supabase Connectors & Authentication Policies
+                            </h4>
+                            <p className="text-[10px] text-indigo-700 dark:text-indigo-300 mt-0.5">
+                              Configure public registration, approval policies, session timeouts, and inspect live connector health.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setIsTestingConnector(true);
+                              try {
+                                const h = await testSupabaseConnector();
+                                setConnectorHealth(h);
+                              } finally {
+                                setIsTestingConnector(false);
+                              }
+                            }}
+                            disabled={isTestingConnector}
+                            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs disabled:opacity-50"
+                          >
+                            <RotateCcw className={`w-3.5 h-3.5 ${isTestingConnector ? 'animate-spin' : ''}`} />
+                            <span>{isTestingConnector ? 'Pinging...' : 'Test Connector'}</span>
+                          </button>
+                        </div>
+
+                        {/* Health pills */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                          <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Connection Status</span>
+                            <span className={`font-bold flex items-center gap-1 ${connectorHealth?.status === 'connected' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              <span className={`w-2 h-2 rounded-full ${connectorHealth?.status === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                              {connectorHealth?.status === 'connected' ? 'Connected' : connectorHealth?.status === 'degraded' ? 'Degraded' : 'Checking...'}
+                            </span>
+                          </div>
+                          <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Latency</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">
+                              {connectorHealth ? `${connectorHealth.latencyMs} ms` : '—'}
+                            </span>
+                          </div>
+                          <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 block font-semibold">Auth & Database API</span>
+                            <span className="font-bold text-emerald-600">
+                              {connectorHealth?.authEndpointOk && connectorHealth?.databaseEndpointOk ? '✓ Both Active' : 'Restricted'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Policy Controls */}
+                        <div className="space-y-2 pt-1">
+                          <label className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800 cursor-pointer text-xs">
+                            <div>
+                              <span className="font-bold text-slate-900 dark:text-white block">Allow Public Registration</span>
+                              <span className="text-[10px] text-slate-500">Allow users to sign up / create account requests from the login modal.</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={authConfig.allowPublicRegistration}
+                              disabled={userRole !== 'admin'}
+                              onChange={(e) => {
+                                const updated = saveAppAuthConfig({ allowPublicRegistration: e.target.checked });
+                                setAuthConfig(updated);
+                              }}
+                              className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+                            />
+                          </label>
+
+                          <label className="flex items-center justify-between p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800 cursor-pointer text-xs">
+                            <div>
+                              <span className="font-bold text-slate-900 dark:text-white block">Auto-Approve Students</span>
+                              <span className="text-[10px] text-slate-500">Automatically approve student accounts upon signup.</span>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={authConfig.autoApproveStudents}
+                              disabled={userRole !== 'admin'}
+                              onChange={(e) => {
+                                const updated = saveAppAuthConfig({ autoApproveStudents: e.target.checked });
+                                setAuthConfig(updated);
+                              }}
+                              className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+                            />
+                          </label>
+
+                          <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-indigo-100 dark:border-slate-800 text-xs">
+                            <span className="font-bold text-slate-900 dark:text-white block mb-1">Session Inactivity Timeout</span>
+                            <select
+                              value={authConfig.sessionTimeoutMinutes}
+                              disabled={userRole !== 'admin'}
+                              onChange={(e) => {
+                                const updated = saveAppAuthConfig({ sessionTimeoutMinutes: Number(e.target.value) });
+                                setAuthConfig(updated);
+                              }}
+                              className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs"
+                            >
+                              <option value="15">15 Minutes</option>
+                              <option value="30">30 Minutes</option>
+                              <option value="60">1 Hour</option>
+                              <option value="120">2 Hours (Standard)</option>
+                              <option value="0">Never (Stay Signed In)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
 
                       <hr className="border-slate-200" />
 

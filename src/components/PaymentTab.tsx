@@ -44,7 +44,8 @@ import {
   LayoutGrid,
   List,
   Heart,
-  Calendar
+  Calendar,
+  FileSpreadsheet
 } from 'lucide-react';
 import { PaymentRecord, Invoice, PaymentTransaction, Receipt, StudentInstallmentPlan, InstallmentMilestone, SponsorshipDonation } from '../types';
 import { getInvoices, saveInvoices, getTransactions, saveTransactions, getReceipts, saveReceipts, bootstrapFromPaymentRecords, recordPaymentTransaction } from '../lib/financialWorkflow';
@@ -60,6 +61,8 @@ import { FinancialReportsModal } from './finance/FinancialReportsModal';
 import { PrintableReceiptModal } from './finance/PrintableReceiptModal';
 import { RecordTransactionModal } from './finance/RecordTransactionModal';
 import { FinancialAdjustmentModal } from './finance/FinancialAdjustmentModal';
+import { GoogleSheetsTuitionModal } from './finance/GoogleSheetsTuitionModal';
+import { fetchTuitionSpreadsheet, mergeTuitionRecords, persistTuitionRecords } from '../lib/tuitionSheets';
 import { uploadToSupabaseStorage } from '../lib/supabaseClient';
 import { EmptyState } from './UXPrimitives';
 import { Modal } from './Modal';
@@ -76,6 +79,15 @@ interface PaymentTabProps {
   setPayments?: React.Dispatch<React.SetStateAction<PaymentRecord[]>>;
   onDeleteStudent?: (studentName: string) => void;
   onRestoreStudent?: (studentName: string) => void;
+  tuitionSheetUrl?: string;
+  setTuitionSheetUrl?: (url: string) => void;
+  lastTuitionSyncedTime?: string | null;
+  isTuitionLoading?: boolean;
+  tuitionSyncStats?: { totalStudents: number; totalBilled: number; totalPaid: number; totalBalance: number } | null;
+  onSyncTuitionSheet?: (customUrl?: string) => Promise<any>;
+  mainSheetUrl?: string;
+  manualTuitionOnly?: boolean;
+  setManualTuitionOnly?: (val: boolean) => void;
 }
 
 import { INITIAL_PAYMENTS } from '../data/initialPortalData';
@@ -89,9 +101,21 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
   payments: propPayments,
   setPayments: propSetPayments,
   onDeleteStudent,
-  onRestoreStudent
+  onRestoreStudent,
+  tuitionSheetUrl,
+  setTuitionSheetUrl,
+  lastTuitionSyncedTime,
+  isTuitionLoading = false,
+  tuitionSyncStats,
+  onSyncTuitionSheet,
+  mainSheetUrl,
+  manualTuitionOnly = true,
+  setManualTuitionOnly,
 }) => {
   const isStudent = userRole === 'student';
+
+  const [showSheetSyncModal, setShowSheetSyncModal] = useState(false);
+  const [isSyncingDirectly, setIsSyncingDirectly] = useState(false);
 
   // If not admin and not student, block view
   if (!isAdmin && !isStudent) {
@@ -254,6 +278,52 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       return [];
     }
   });
+
+  const handleTriggerTuitionSync = async (targetUrl?: string) => {
+    const urlToUse = targetUrl || tuitionSheetUrl || mainSheetUrl || localStorage.getItem('sheetUrl') || '';
+    if (!urlToUse) {
+      toast.error('Please configure a Google Sheets URL first.');
+      setShowSheetSyncModal(true);
+      return;
+    }
+
+    setIsSyncingDirectly(true);
+    try {
+      if (onSyncTuitionSheet) {
+        const res = await onSyncTuitionSheet(urlToUse);
+        if (res) {
+          toast.success(`Successfully pulled ${res.totalStudents || res.records?.length || 0} student tuition accounts from Google Sheets.`);
+          logActivity({
+            action: 'RECORD_PAYMENT',
+            actionCategory: 'Payment Entry',
+            actionTitle: 'Google Sheets Tuition Sync',
+            details: `Pulled ${res.totalStudents || 0} student records ($${(res.totalTuitionBilled || 0).toLocaleString()} billed, $${(res.totalAmountCollected || 0).toLocaleString()} collected) from Google Sheet`,
+          });
+        }
+      } else {
+        const result = await fetchTuitionSpreadsheet(urlToUse, null, payments);
+        const merged = mergeTuitionRecords(payments, result.records, 'manual');
+        setPayments(merged);
+        persistTuitionRecords(merged);
+        const boot = bootstrapFromPaymentRecords(merged);
+        setInvoices(boot.invoices);
+        if (boot.transactions.length > 0) setTransactions(boot.transactions);
+        if (boot.receipts.length > 0) setReceipts(boot.receipts);
+        toast.success(`Successfully pulled ${result.totalStudents} student tuition accounts from Google Sheets.`);
+        logActivity({
+          action: 'RECORD_PAYMENT',
+          actionCategory: 'Payment Entry',
+          actionTitle: 'Google Sheets Tuition Sync',
+          details: `Pulled ${result.totalStudents} student records from Google Sheet (${result.sheetTitle})`,
+        });
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to pull tuition data from Google Sheets.';
+      toast.error(msg);
+    } finally {
+      setIsSyncingDirectly(false);
+    }
+  };
 
   const handleSaveInstallmentPlan = (plan: StudentInstallmentPlan) => {
     const updated = [...installmentPlans.filter(p => p.id !== plan.id && p.studentName !== plan.studentName), plan];
@@ -1247,6 +1317,11 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                 <span className="px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full flex items-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-500" /> Admin Portal
                 </span>
+                {manualTuitionOnly && (
+                  <span className="px-3 py-0.5 text-[10px] font-bold tracking-wider bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Manual Tuition Updates Active
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
                 HTEIM School of Ministry • Student Tuition Management Ledger & Financial Analytics
@@ -1345,6 +1420,30 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               {payments.filter(p => p.totalTuition - p.amountPaid > 0).length} Due
             </span>
           </button>
+          <button
+            onClick={() => handleTriggerTuitionSync()}
+            disabled={isTuitionLoading || isSyncingDirectly}
+            className="min-h-11 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+            title="Pull latest tuition & fee schedules from connected Google Sheet"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isTuitionLoading || isSyncingDirectly ? 'animate-spin' : ''}`} />
+            <span>{isTuitionLoading || isSyncingDirectly ? 'Syncing...' : 'Sync from Google Sheets'}</span>
+            {lastTuitionSyncedTime && (
+              <span className="text-[10px] bg-emerald-800/80 px-1.5 py-0.5 rounded font-mono hidden md:inline">
+                {lastTuitionSyncedTime}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowSheetSyncModal(true)}
+            className="min-h-11 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
+            title="Configure Google Sheets Tuition URL and preview tabs"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Sheet Settings</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
             className="min-h-11 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
@@ -3022,6 +3121,23 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             onClose={() => setShowScholarshipModal(false)}
             students={studentsForInstallment}
             onGrantScholarship={handleGrantScholarship}
+          />
+        )}
+
+        {/* Google Sheets Tuition & Fees Sync Modal */}
+        {showSheetSyncModal && (
+          <GoogleSheetsTuitionModal
+            isOpen={showSheetSyncModal}
+            onClose={() => setShowSheetSyncModal(false)}
+            currentPayments={payments}
+            onUpdatePayments={(updatedRecords) => {
+              setPayments(updatedRecords);
+              persistTuitionRecords(updatedRecords);
+            }}
+            tuitionSheetUrl={tuitionSheetUrl}
+            onSaveTuitionSheetUrl={setTuitionSheetUrl}
+            mainSheetUrl={mainSheetUrl}
+            lastSyncedTime={lastTuitionSyncedTime}
           />
         )}
     </div>

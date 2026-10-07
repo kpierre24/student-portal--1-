@@ -306,15 +306,13 @@ export const StudentNotesBibleTab: React.FC<StudentNotesBibleTabProps> = ({
       return;
     }
 
-    if (window.confirm('Are you sure you want to delete this class note?')) {
-      const updated = notes.filter(n => n.id !== id);
-      setNotes(updated);
-      saveStudentNotes(currentStudentName, updated);
-      if (activeNoteId === id) {
-        setActiveNoteId(updated[0]?.id || '');
-      }
-      toast.success('Note removed');
+    const updated = notes.filter(n => n.id !== id);
+    setNotes(updated);
+    saveStudentNotes(currentStudentName, updated);
+    if (activeNoteId === id) {
+      setActiveNoteId(updated[0]?.id || '');
     }
+    toast.success('Note removed');
   };
 
   // Insert Scripture into Active Note

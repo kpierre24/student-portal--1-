@@ -2,20 +2,53 @@ import { createClient } from '@supabase/supabase-js';
 import { sanitizeFileName } from './securityHelper';
 import { logger } from './logger';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export const DEFAULT_SUPABASE_PROJECT_URL = 'https://mjaloptcpeytvecbxbza.supabase.co';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing required Supabase env vars: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
+export function getResolvedSupabaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('hteim_supabase_custom_url');
+    if (custom && custom.startsWith('http')) return custom.trim();
+  }
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (envUrl && !envUrl.includes('your-project.supabase.co')) {
+    return envUrl.trim();
+  }
+  return DEFAULT_SUPABASE_PROJECT_URL;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
+export function getResolvedSupabaseAnonKey(): string {
+  if (typeof window !== 'undefined') {
+    const customKey = localStorage.getItem('hteim_supabase_custom_anon_key');
+    if (customKey && customKey.trim()) return customKey.trim();
   }
-});
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (envKey && !envKey.includes('placeholder')) {
+    return envKey.trim();
+  }
+  return envKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
+}
+
+export function createPortalSupabaseClient(customUrl?: string, customKey?: string) {
+  const url = customUrl || getResolvedSupabaseUrl();
+  const key = customKey || getResolvedSupabaseAnonKey();
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    }
+  });
+}
+
+export let supabase = createPortalSupabaseClient();
+
+export function setCustomSupabaseConfig(url?: string, anonKey?: string): void {
+  if (typeof window !== 'undefined') {
+    if (url) localStorage.setItem('hteim_supabase_custom_url', url.trim());
+    if (anonKey) localStorage.setItem('hteim_supabase_custom_anon_key', anonKey.trim());
+  }
+  supabase = createPortalSupabaseClient(url, anonKey);
+}
 
 /**
  * Uploads a File or Base64 Data URL to a Supabase Storage bucket and returns the public URL.
@@ -505,10 +538,12 @@ export async function migrateLocalStorageProfilePicturesToSupabase(
  * bucket availability, and lists all files stored in the library & assignments buckets.
  */
 export async function runSupabaseDiagnostics(userEmail?: string): Promise<SupabaseDiagnosticReport> {
+  const currentUrl = getResolvedSupabaseUrl();
+  const currentAnonKey = getResolvedSupabaseAnonKey();
   const report: SupabaseDiagnosticReport = {
     timestamp: new Date().toISOString(),
-    supabaseUrl,
-    hasAnonKey: Boolean(supabaseAnonKey),
+    supabaseUrl: currentUrl,
+    hasAnonKey: Boolean(currentAnonKey),
     dbConnected: false,
     availableBuckets: [],
     bucketErrors: {},

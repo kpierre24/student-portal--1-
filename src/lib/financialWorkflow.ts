@@ -780,9 +780,9 @@ export function bootstrapFromPaymentRecords(records: PaymentRecord[]): {
       adjustments: 0,
       netTuition: Math.max(0, (p.totalTuition || 1200) - discounts - scholarships),
       amountPaid,
-      outstandingBalance: Math.max(0, (p.totalTuition || 1200) - discounts - scholarships - amountPaid),
+      outstandingBalance: p.balanceOwed !== undefined ? p.balanceOwed : Math.max(0, (p.totalTuition || 1200) - discounts - scholarships - amountPaid),
       paymentPlan: p.paymentPlan || (amountPaid === p.totalTuition ? 'Pay In Full' : 'Monthly Installments'),
-      status: (p.totalTuition || 1200) - discounts - scholarships - amountPaid <= 0 ? 'Paid' : amountPaid > 0 ? 'Partially Paid' : 'Unpaid',
+      status: (p.balanceOwed !== undefined ? p.balanceOwed <= 0 : (p.totalTuition || 1200) - discounts - scholarships - amountPaid <= 0) ? 'Paid' : amountPaid > 0 ? 'Partially Paid' : 'Unpaid',
       notes: p.notes,
       createdAt: '2026-01-15T00:00:00Z',
       updatedAt: '2026-04-15T00:00:00Z'

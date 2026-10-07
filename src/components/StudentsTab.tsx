@@ -23,6 +23,7 @@ export const StudentsTab: React.FC<StudentsTabProps> = ({
   classDays,
   onSelectStudentForTranscript,
   onStudentsChange,
+  onDeleteStudent,
 }) => {
   return (
     <StudentsPage
@@ -30,6 +31,7 @@ export const StudentsTab: React.FC<StudentsTabProps> = ({
       classDays={classDays}
       onSelectStudentForTranscript={onSelectStudentForTranscript}
       onStudentsChange={onStudentsChange}
+      onDeleteStudent={onDeleteStudent}
     />
   );
 };

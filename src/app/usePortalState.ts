@@ -37,6 +37,7 @@ import { fetchSpreadsheetMetadata, fetchMultipleRanges, extractSpreadsheetId, fe
 import { CentralNotificationService } from '../services/notification/CentralNotificationService';
 import { generateAutomatedNotifications } from '../lib/notifications';
 import { getStudentPaymentDetails, StudentPaymentSummary } from '../lib/paymentUtils';
+import { getInvoices, saveInvoices, getTransactions, saveTransactions, getReceipts, saveReceipts } from '../lib/financialWorkflow';
 import { logActivity } from '../lib/auditLogger';
 import { trackUxEvent } from '../lib/uxTelemetry';
 import { usePWAInstall } from '../lib/pwa';
@@ -598,6 +599,8 @@ export function usePortalState() {
     classDays,
     setClassDays,
     deletedClassDayIds,
+    payments,
+    setPayments,
     setError: (err) => {
       setError(err);
       if (err) showToast('error', 'Sheets Sync', err);
@@ -610,6 +613,13 @@ export function usePortalState() {
   const {
     sheetUrl,
     setSheetUrl,
+    tuitionSheetUrl,
+    setTuitionSheetUrl,
+    lastTuitionSyncedTime,
+    setLastTuitionSyncedTime,
+    isTuitionLoading,
+    tuitionSyncStats,
+    handleSyncTuitionSheet,
     recentSheets,
     setRecentSheets,
     autoSyncInterval,
@@ -629,6 +639,8 @@ export function usePortalState() {
     handleLoadSheets,
     handleResolveConflicts,
     handleRemoveRecentSheet,
+    manualTuitionOnly,
+    setManualTuitionOnly,
   } = sheetsSync;
 
   handleLoadSheetsRef.current = handleLoadSheets;
@@ -1766,14 +1778,37 @@ export function usePortalState() {
         const isDroppedOut = enrollmentStatus === 'dropped_out' || enrollmentStatus === 'withdrawn';
         const dropoutInfo = studentDropoutNotes[name] || studentDropoutNotes[studentNorm] || studentDropoutNotes[key] || {};
 
-        let id = `std-${studentNorm.replace(/[^a-z0-9]+/g, '-')}`;
+        // Retrieve or generate permanent assigned Student ID for this student
+        const pRec = payments.find(p => p && (normalizeStudentName(p.studentName || '') === studentNorm || p.studentName === name));
+        let assignedStudentId = pRec?.studentId;
+        if (!assignedStudentId && typeof window !== 'undefined') {
+          try {
+            const idMap = JSON.parse(localStorage.getItem('hteim_student_id_map') || '{}');
+            assignedStudentId = idMap[studentNorm] || idMap[name];
+          } catch {}
+        }
+        if (!assignedStudentId) {
+          assignedStudentId = `HTEIM-STD-${(idx + 1).toString().padStart(3, '0')}`;
+          if (typeof window !== 'undefined') {
+            try {
+              const idMap = JSON.parse(localStorage.getItem('hteim_student_id_map') || '{}');
+              idMap[studentNorm] = assignedStudentId;
+              idMap[name] = assignedStudentId;
+              localStorage.setItem('hteim_student_id_map', JSON.stringify(idMap));
+            } catch {}
+          }
+        }
+
+        let id = assignedStudentId;
         if (seenIds.has(id)) {
-          id = `${id}-${idx}`;
+          id = `${id}-${idx + 1}`;
         }
         seenIds.add(id);
 
         return {
           id,
+          studentId: id,
+          studentNumber: id,
           name,
           attended,
           totalDays: total,
@@ -2447,9 +2482,220 @@ export function usePortalState() {
       setStudentNotes(prev => ({ ...prev, [name]: noteText }));
       showToast('success', 'Note Saved', `Academic note saved for ${name}`);
     },
-    handleDeleteStudent: (name: string) => {
-      setDeletedStudentNames(prev => [...prev, name]);
-      showToast('info', 'Student Deleted', `${name} removed from active view.`);
+    handleDeleteStudent: (identifier: string) => {
+      if (!identifier) return;
+
+      const normInput = normalizeStudentName(identifier);
+      
+      // Find matching student in active uniqueStudents list
+      const targetStudent = uniqueStudents.find(st => 
+        st.id === identifier || 
+        st.studentId === identifier || 
+        st.name === identifier || 
+        normalizeStudentName(st.name) === normInput ||
+        st.name.toLowerCase() === identifier.toLowerCase()
+      );
+
+      const studentName = targetStudent ? targetStudent.name : identifier;
+      const studentId = targetStudent ? (targetStudent.studentId || targetStudent.id || identifier) : identifier;
+      const normName = normalizeStudentName(studentName);
+
+      // 1. Permanently record in deletedStudentNames & update localStorage
+      setDeletedStudentNames(prev => {
+        const next = Array.from(new Set([...prev, studentName, normName, studentId, identifier]));
+        localStorage.setItem('deletedStudentNames', JSON.stringify(next));
+        return next;
+      });
+
+      // 2. Cascade purge Attendance Records
+      setRecords(prev => {
+        const updated = prev.filter(r => {
+          const rName = r.name || r.studentName || '';
+          const rNorm = normalizeStudentName(rName);
+          const rId = r.studentId || r.id;
+          return rNorm !== normName && rName !== studentName && rId !== studentId && rId !== identifier;
+        });
+        localStorage.setItem('attendanceRecords', JSON.stringify(updated));
+        return updated;
+      });
+
+      // 3. Cascade purge Tuition Payments
+      setPayments(prev => {
+        const updated = prev.filter(p => {
+          const pName = p.studentName || '';
+          const pNorm = normalizeStudentName(pName);
+          const pId = p.studentId || p.id;
+          return pNorm !== normName && pName !== studentName && pId !== studentId && pId !== identifier;
+        });
+        localStorage.setItem('hteim_student_payments', JSON.stringify(updated));
+        localStorage.setItem('hteim_payment_records', JSON.stringify(updated));
+        return updated;
+      });
+
+      // 4. Cascade purge Invoices, Transactions, and Receipts
+      try {
+        const updatedInvoices = getInvoices().filter(inv => {
+          const iName = inv.studentName || '';
+          const iNorm = normalizeStudentName(iName);
+          return iNorm !== normName && iName !== studentName && inv.studentId !== studentId && inv.studentId !== identifier;
+        });
+        saveInvoices(updatedInvoices);
+
+        const updatedTxs = getTransactions().filter(tx => {
+          const tName = tx.studentName || '';
+          const tNorm = normalizeStudentName(tName);
+          return tNorm !== normName && tName !== studentName && tx.studentId !== studentId && tx.studentId !== identifier;
+        });
+        saveTransactions(updatedTxs);
+
+        const updatedReceipts = getReceipts().filter(rcpt => {
+          const rName = rcpt.studentName || '';
+          const rNorm = normalizeStudentName(rName);
+          return rNorm !== normName && rName !== studentName && rcpt.studentId !== studentId && rcpt.studentId !== identifier;
+        });
+        saveReceipts(updatedReceipts);
+      } catch (err) {
+        console.warn('Error purging financial invoices/transactions for deleted student:', err);
+      }
+
+      // 5. Cascade purge Assignment & Homework Submissions
+      setSubmissions(prev => {
+        const updated = prev.filter(sub => {
+          const subName = sub.studentName || '';
+          const subNorm = normalizeStudentName(subName);
+          return subNorm !== normName && subName !== studentName && sub.studentId !== studentId && sub.studentId !== identifier;
+        });
+        localStorage.setItem('hteim_assignment_submissions', JSON.stringify(updated));
+        return updated;
+      });
+
+      // 6. Cascade purge Quiz Submissions from localStorage
+      try {
+        const savedQuizSubsStr = localStorage.getItem('hteim_quiz_submissions');
+        if (savedQuizSubsStr) {
+          const savedQuizSubs = JSON.parse(savedQuizSubsStr);
+          if (Array.isArray(savedQuizSubs)) {
+            const filteredQuizSubs = savedQuizSubs.filter((q: any) => {
+              const qName = q.studentName || q.name || '';
+              const qNorm = normalizeStudentName(qName);
+              return qNorm !== normName && qName !== studentName && q.studentId !== studentId && q.studentId !== identifier;
+            });
+            localStorage.setItem('hteim_quiz_submissions', JSON.stringify(filteredQuizSubs));
+          }
+        }
+      } catch {}
+
+      // 7. Cascade purge Student Notes, Excused Absences, Rubric Scores
+      setStudentNotes(prev => {
+        const next = { ...prev };
+        delete next[studentName];
+        delete next[normName];
+        delete next[studentId];
+        delete next[identifier];
+        localStorage.setItem('studentNotes', JSON.stringify(next));
+        return next;
+      });
+
+      setExcusedAbsences(prev => {
+        const next = { ...prev };
+        delete next[studentName];
+        delete next[normName];
+        delete next[studentId];
+        delete next[identifier];
+        localStorage.setItem('excusedAbsences', JSON.stringify(next));
+        return next;
+      });
+
+      setRubricScores(prev => {
+        const next = { ...prev };
+        delete next[studentName];
+        delete next[normName];
+        delete next[studentId];
+        delete next[identifier];
+        localStorage.setItem('rubricScores', JSON.stringify(next));
+        return next;
+      });
+
+      // 8. Cascade purge enrollment statuses, photos, cohort, and custom student records
+      setStudentEnrollmentStatuses(prev => {
+        const next = { ...prev };
+        delete next[studentName];
+        delete next[normName];
+        delete next[studentId];
+        delete next[identifier];
+        localStorage.setItem('hteim_student_enrollment_statuses', JSON.stringify(next));
+        return next;
+      });
+
+      setStudentDropoutNotes(prev => {
+        const next = { ...prev };
+        delete next[studentName];
+        delete next[normName];
+        delete next[studentId];
+        delete next[identifier];
+        localStorage.setItem('hteim_student_dropout_notes', JSON.stringify(next));
+        return next;
+      });
+
+      try {
+        localStorage.removeItem(`hteim_student_notes_${normName}`);
+        localStorage.removeItem(`hteim_student_notes_${studentName}`);
+        localStorage.removeItem(`hteim_student_notes_${studentId}`);
+        localStorage.removeItem(`hteim_student_photo_${normName}`);
+        localStorage.removeItem(`hteim_student_photo_${studentName}`);
+        localStorage.removeItem(`hteim_student_cohort_${normName}`);
+        
+        // Remove from ID map
+        const idMapStr = localStorage.getItem('hteim_student_id_map');
+        if (idMapStr) {
+          const idMap = JSON.parse(idMapStr);
+          delete idMap[normName];
+          delete idMap[studentName];
+          delete idMap[studentId];
+          localStorage.setItem('hteim_student_id_map', JSON.stringify(idMap));
+        }
+
+        // Remove from custom students list if present
+        const customStdsStr = localStorage.getItem('hteim_custom_students');
+        if (customStdsStr) {
+          const customStds = JSON.parse(customStdsStr);
+          if (Array.isArray(customStds)) {
+            const filteredCustom = customStds.filter((s: any) => {
+              const cName = typeof s === 'string' ? s : (s.name || '');
+              const cNorm = normalizeStudentName(cName);
+              const cId = typeof s === 'object' ? (s.studentId || s.id) : null;
+              return cNorm !== normName && cName !== studentName && cId !== studentId && cId !== identifier;
+            });
+            localStorage.setItem('hteim_custom_students', JSON.stringify(filteredCustom));
+          }
+        }
+      } catch {}
+
+      // 9. Cascade purge User Accounts
+      try {
+        const savedUsersStr = localStorage.getItem('hteim_portal_users');
+        if (savedUsersStr) {
+          const savedUsers = JSON.parse(savedUsersStr);
+          if (Array.isArray(savedUsers)) {
+            const updatedUsers = savedUsers.filter((u: any) => {
+              const uName = u.studentName || u.name || '';
+              const uNorm = normalizeStudentName(uName);
+              return uNorm !== normName && uName !== studentName && u.studentId !== studentId && u.studentId !== identifier;
+            });
+            localStorage.setItem('hteim_portal_users', JSON.stringify(updatedUsers));
+          }
+        }
+      } catch {}
+
+      // 10. Audit log and toast notification
+      logActivity({
+        action: 'DELETE_STUDENT',
+        actionCategory: 'Student Record',
+        actionTitle: 'Permanent Student Record Deletion',
+        details: `Permanently deleted student ${studentName} (ID: ${studentId}) and purged all attendance, tuition, assignment, note, and user account records.`,
+      });
+
+      showToast('success', 'Student Record Permanently Deleted', `All records for ${studentName} (ID: ${studentId}) have been permanently removed across the application.`);
     },
     handleClearStudentAttendanceRecords: (name: string) => {
       setRecords(prev => prev.filter(r => r.name !== name));
@@ -2480,22 +2726,46 @@ export function usePortalState() {
     },
     handleAddClassDay: (title?: string) => {
       const newId = `day_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      let assignedTitle = '';
       setClassDays(prev => {
         const nextNum = prev.length + 1;
-        const validTitle = (typeof title === 'string' && title.trim().length > 0)
+        assignedTitle = (typeof title === 'string' && title.trim().length > 0)
           ? title.trim()
           : `Class Day ${nextNum}`;
-        return [...prev, { id: newId, name: validTitle }];
+        const updated = [...prev, { id: newId, name: assignedTitle }];
+        localStorage.setItem('classDays', JSON.stringify(updated));
+        return updated;
       });
+      showToast('success', 'Class Session Added', `Created new class session: "${assignedTitle || 'Class Day'}"`);
     },
     handleEditClassDayTitle: (id: string, newTitle: string) => {
-      setClassDays(prev => prev.map(d => d.id === id ? { ...d, name: newTitle } : d));
+      setClassDays(prev => {
+        const updated = prev.map(d => d.id === id ? { ...d, name: newTitle } : d);
+        localStorage.setItem('classDays', JSON.stringify(updated));
+        return updated;
+      });
+      showToast('success', 'Class Session Renamed', `Renamed class day to "${newTitle}"`);
     },
     handleDeleteClassDay: (id: string) => {
-      setDeletedClassDayIds(prev => [...prev, id]);
+      setDeletedClassDayIds(prev => {
+        const next = Array.from(new Set([...prev, id]));
+        localStorage.setItem('deletedClassDayIds', JSON.stringify(next));
+        return next;
+      });
+      setClassDays(prev => {
+        const updated = prev.filter(d => d.id !== id);
+        localStorage.setItem('classDays', JSON.stringify(updated));
+        return updated;
+      });
+      showToast('info', 'Class Session Deleted', 'Class day session has been removed.');
     },
     handleClearClassDayRecords: (id: string) => {
-      setRecords(prev => prev.filter(r => r.classDay !== id));
+      setRecords(prev => {
+        const updated = prev.filter(r => r.classDay !== id);
+        localStorage.setItem('attendanceRecords', JSON.stringify(updated));
+        return updated;
+      });
+      showToast('info', 'Records Reset', 'Attendance records for this class day have been reset.');
     },
     classDayStats,
     trendChartData,
@@ -2525,6 +2795,15 @@ export function usePortalState() {
       if (student?.rate < 75) badges.push({ id: 'at-risk', label: 'At-Risk', color: 'rose', bg: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300' });
       return badges;
     },
+    tuitionSheetUrl,
+    setTuitionSheetUrl,
+    lastTuitionSyncedTime,
+    setLastTuitionSyncedTime,
+    isTuitionLoading,
+    tuitionSyncStats,
+    manualTuitionOnly,
+    setManualTuitionOnly,
+    handleSyncTuitionSheet,
     activePublicQuiz,
     isLoadingPublicQuiz,
     isPublicQuizNotFound,

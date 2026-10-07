@@ -22,6 +22,8 @@ import { FloatingQuizBanner } from '../features/assignments';
 import { OfflineSyncDrawer } from '../components/OfflineSyncDrawer';
 import { PWAUpdateNotification } from '../components/PWAUpdateNotification';
 import { A11yLiveRegion } from '../components/shared/A11yLiveRegion';
+import { useSessionManager } from '../lib/hooks/useSessionManager';
+import { SessionTimeoutModal } from '../components/SessionTimeoutModal';
 
 export interface ApplicationShellProps {
   children: React.ReactNode;
@@ -167,6 +169,10 @@ export function ApplicationShell({
   setShowOfflineDrawer = () => {},
 }: ApplicationShellProps) {
   const [pendingOfflineCount, setPendingOfflineCount] = React.useState<number>(0);
+  const { showWarningModal, remainingSeconds, extendSession } = useSessionManager({
+    currentUser: appUser,
+    onLogout,
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -563,6 +569,14 @@ create policy "Allow public update" on app_states for update using (true) with c
 
         {/* PWA New Version Update Notification (Step 7.3) */}
         <PWAUpdateNotification />
+
+        {/* Inactivity Session Timeout Modal */}
+        <SessionTimeoutModal
+          isOpen={showWarningModal}
+          remainingSeconds={remainingSeconds}
+          onExtend={extendSession}
+          onLogout={onLogout}
+        />
 
         {/* Floating Back-To-Top Button */}
         <BackToTopButton />

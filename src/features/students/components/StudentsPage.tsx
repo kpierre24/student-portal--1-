@@ -60,6 +60,7 @@ export function StudentsPage({
   const { saveStudent, deleteStudent } = useStudentMutations({
     students,
     onStudentsChange,
+    onDeleteStudent,
   });
 
   const handleOpenCreateForm = () => {

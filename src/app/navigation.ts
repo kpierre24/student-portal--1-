@@ -17,32 +17,20 @@ import {
   LucideIcon
 } from 'lucide-react';
 
-function lazyWithRetry<T extends React.ComponentType<any>>(
-  factory: () => Promise<{ default: T }>
-) {
-  return React.lazy(async () => {
-    try {
-      return await factory();
-    } catch (error) {
-      console.warn('Transient page chunk load failure, retrying once...', error);
-      await new Promise(resolve => setTimeout(resolve, 250));
-      return await factory();
-    }
-  });
-}
+import { lazyWithRetry } from '../lib/lazyWithRetry';
 
-export const DashboardPage = lazyWithRetry(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
-export const StudentsPage = lazyWithRetry(() => import('../pages/StudentsPage').then(m => ({ default: m.StudentsPage })));
-export const AttendancePage = lazyWithRetry(() => import('../pages/AttendancePage').then(m => ({ default: m.AttendancePage })));
-export const CoursesPage = lazyWithRetry(() => import('../pages/CoursesPage').then(m => ({ default: m.CoursesPage })));
-export const ExamsPage = lazyWithRetry(() => import('../pages/ExamsPage').then(m => ({ default: m.ExamsPage })));
-export const SchedulePage = lazyWithRetry(() => import('../pages/SchedulePage').then(m => ({ default: m.SchedulePage })));
-export const LibraryPage = lazyWithRetry(() => import('../pages/LibraryPage').then(m => ({ default: m.LibraryPage })));
-export const FinancePage = lazyWithRetry(() => import('../pages/FinancePage').then(m => ({ default: m.FinancePage })));
-export const MessagesPage = lazyWithRetry(() => import('../pages/MessagesPage').then(m => ({ default: m.MessagesPage })));
-export const ReportsPage = lazyWithRetry(() => import('../pages/ReportsPage').then(m => ({ default: m.ReportsPage })));
-export const NotesPage = lazyWithRetry(() => import('../pages/NotesPage').then(m => ({ default: m.NotesPage })));
-export const ClassroomPage = lazyWithRetry(() => import('../pages/ClassroomPage').then(m => ({ default: m.ClassroomPage })));
+export const DashboardPage = lazyWithRetry(() => import('../pages/DashboardPage').then(m => ({ default: m.DashboardPage })), 'DashboardPage');
+export const StudentsPage = lazyWithRetry(() => import('../pages/StudentsPage').then(m => ({ default: m.StudentsPage })), 'StudentsPage');
+export const AttendancePage = lazyWithRetry(() => import('../pages/AttendancePage').then(m => ({ default: m.AttendancePage })), 'AttendancePage');
+export const CoursesPage = lazyWithRetry(() => import('../pages/CoursesPage').then(m => ({ default: m.CoursesPage })), 'CoursesPage');
+export const ExamsPage = lazyWithRetry(() => import('../pages/ExamsPage').then(m => ({ default: m.ExamsPage })), 'ExamsPage');
+export const SchedulePage = lazyWithRetry(() => import('../pages/SchedulePage').then(m => ({ default: m.SchedulePage })), 'SchedulePage');
+export const LibraryPage = lazyWithRetry(() => import('../pages/LibraryPage').then(m => ({ default: m.LibraryPage })), 'LibraryPage');
+export const FinancePage = lazyWithRetry(() => import('../pages/FinancePage').then(m => ({ default: m.FinancePage })), 'FinancePage');
+export const MessagesPage = lazyWithRetry(() => import('../pages/MessagesPage').then(m => ({ default: m.MessagesPage })), 'MessagesPage');
+export const ReportsPage = lazyWithRetry(() => import('../pages/ReportsPage').then(m => ({ default: m.ReportsPage })), 'ReportsPage');
+export const NotesPage = lazyWithRetry(() => import('../pages/NotesPage').then(m => ({ default: m.NotesPage })), 'NotesPage');
+export const ClassroomPage = lazyWithRetry(() => import('../pages/ClassroomPage').then(m => ({ default: m.ClassroomPage })), 'ClassroomPage');
 
 /**
  * Single Canonical Route Registry interface.

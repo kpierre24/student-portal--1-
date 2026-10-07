@@ -1475,6 +1475,10 @@ ${resource.fullContent || 'Full lesson document content loaded for student refer
           onSelectCourse={(courseCode, courseTitle) => {
             setLibraryViewMode('curriculum');
           }}
+          onDownloadResource={(learningRes, e) => {
+            const legacy = toLegacyResource(learningRes);
+            handleDownload(legacy, e);
+          }}
           userRole={userRole}
         />
       ) : libraryViewMode === 'my_library' ? (

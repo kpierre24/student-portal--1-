@@ -2,40 +2,26 @@ import React, { Suspense } from 'react';
 import { TabType, PaymentRecord, Cohort, Course } from '../types';
 import { AppUser, UserCredential } from '../lib/userAuth';
 import { StudentPaymentSummary } from '../lib/paymentUtils';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
 
-// Resilient lazy loader helper with auto-retry
-function lazyWithRetry<T extends React.ComponentType<any>>(
-  factory: () => Promise<{ default: T }>
-) {
-  return React.lazy(async () => {
-    try {
-      return await factory();
-    } catch (error) {
-      console.warn('Transient modal chunk load failure, retrying once...', error);
-      await new Promise(resolve => setTimeout(resolve, 250));
-      return await factory();
-    }
-  });
-}
-
-// Modals lazy-loaded with sibling relative paths
-const SupabaseDiagnosticModal = lazyWithRetry(() => import('./SupabaseDiagnosticModal').then(m => ({ default: m.SupabaseDiagnosticModal })));
-const BatchAnnouncementModal = lazyWithRetry(() => import('./BatchAnnouncementModal').then(m => ({ default: m.BatchAnnouncementModal })));
-const MobileDownloadCenterModal = lazyWithRetry(() => import('./MobileDownloadCenterModal').then(m => ({ default: m.MobileDownloadCenterModal })));
-const ManageClassDaysModal = lazyWithRetry(() => import('./ManageClassDaysModal').then(m => ({ default: m.ManageClassDaysModal })));
-const SheetMergeConflictModal = lazyWithRetry(() => import('./SheetMergeConflictModal').then(m => ({ default: m.SheetMergeConflictModal })));
-const CohortManagementModal = lazyWithRetry(() => import('./CohortManagementModal').then(m => ({ default: m.CohortManagementModal })));
-const AdminAuditAndBackupModal = lazyWithRetry(() => import('./AdminAuditAndBackupModal').then(m => ({ default: m.AdminAuditAndBackupModal })));
-const StudentTranscriptModal = lazyWithRetry(() => import('../features/students/StudentTranscriptModal').then(m => ({ default: m.StudentTranscriptModal })));
-const CertificateModal = lazyWithRetry(() => import('../features/students/CertificateModal').then(m => ({ default: m.CertificateModal })));
-const BatchEmailModal = lazyWithRetry(() => import('../features/attendance/BatchEmailModal').then(m => ({ default: m.BatchEmailModal })));
-const GuideModal = lazyWithRetry(() => import('./shared/GuideModal').then(m => ({ default: m.GuideModal })));
-const LoginModal = lazyWithRetry(() => import('./LoginModal').then(m => ({ default: m.LoginModal })));
-const ResetPasswordModal = lazyWithRetry(() => import('./ResetPasswordModal').then(m => ({ default: m.ResetPasswordModal })));
-const RoleManagementModal = lazyWithRetry(() => import('./RoleManagementModal').then(m => ({ default: m.RoleManagementModal })));
-const UserManagementModal = lazyWithRetry(() => import('./UserManagementModal').then(m => ({ default: m.UserManagementModal })));
-const AppPresentationModal = lazyWithRetry(() => import('./AppPresentationModal').then(m => ({ default: m.AppPresentationModal })));
-const CommandPaletteModal = lazyWithRetry(() => import('./CommandPaletteModal').then(m => ({ default: m.CommandPaletteModal })));
+// Modals lazy-loaded with resilient retry and fallback
+const SupabaseDiagnosticModal = lazyWithRetry(() => import('./SupabaseDiagnosticModal').then(m => ({ default: m.SupabaseDiagnosticModal })), 'SupabaseDiagnosticModal');
+const BatchAnnouncementModal = lazyWithRetry(() => import('./BatchAnnouncementModal').then(m => ({ default: m.BatchAnnouncementModal })), 'BatchAnnouncementModal');
+const MobileDownloadCenterModal = lazyWithRetry(() => import('./MobileDownloadCenterModal').then(m => ({ default: m.MobileDownloadCenterModal })), 'MobileDownloadCenterModal');
+const ManageClassDaysModal = lazyWithRetry(() => import('./ManageClassDaysModal').then(m => ({ default: m.ManageClassDaysModal })), 'ManageClassDaysModal');
+const SheetMergeConflictModal = lazyWithRetry(() => import('./SheetMergeConflictModal').then(m => ({ default: m.SheetMergeConflictModal })), 'SheetMergeConflictModal');
+const CohortManagementModal = lazyWithRetry(() => import('./CohortManagementModal').then(m => ({ default: m.CohortManagementModal })), 'CohortManagementModal');
+const AdminAuditAndBackupModal = lazyWithRetry(() => import('./AdminAuditAndBackupModal').then(m => ({ default: m.AdminAuditAndBackupModal })), 'AdminAuditAndBackupModal');
+const StudentTranscriptModal = lazyWithRetry(() => import('../features/students/StudentTranscriptModal').then(m => ({ default: m.StudentTranscriptModal })), 'StudentTranscriptModal');
+const CertificateModal = lazyWithRetry(() => import('../features/students/CertificateModal').then(m => ({ default: m.CertificateModal })), 'CertificateModal');
+const BatchEmailModal = lazyWithRetry(() => import('../features/attendance/BatchEmailModal').then(m => ({ default: m.BatchEmailModal })), 'BatchEmailModal');
+const GuideModal = lazyWithRetry(() => import('./shared/GuideModal').then(m => ({ default: m.GuideModal })), 'GuideModal');
+const LoginModal = lazyWithRetry(() => import('./LoginModal').then(m => ({ default: m.LoginModal })), 'LoginModal');
+const ResetPasswordModal = lazyWithRetry(() => import('./ResetPasswordModal').then(m => ({ default: m.ResetPasswordModal })), 'ResetPasswordModal');
+const RoleManagementModal = lazyWithRetry(() => import('./RoleManagementModal').then(m => ({ default: m.RoleManagementModal })), 'RoleManagementModal');
+const UserManagementModal = lazyWithRetry(() => import('./UserManagementModal').then(m => ({ default: m.UserManagementModal })), 'UserManagementModal');
+const AppPresentationModal = lazyWithRetry(() => import('./AppPresentationModal').then(m => ({ default: m.AppPresentationModal })), 'AppPresentationModal');
+const CommandPaletteModal = lazyWithRetry(() => import('./CommandPaletteModal').then(m => ({ default: m.CommandPaletteModal })), 'CommandPaletteModal');
 
 // Normally imported/fast overlay UI elements
 import { StudentDetailModal } from '../features/students/StudentDetailModal';

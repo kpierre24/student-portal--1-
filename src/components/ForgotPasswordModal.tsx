@@ -25,6 +25,7 @@ interface ForgotPasswordModalProps {
   onClose: () => void;
   onBackToLogin: () => void;
   userCredentials?: UserCredential[];
+  initialEmail?: string;
   onPasswordResetSuccess?: (email: string) => void;
   onOpenResetModal?: (email: string) => void;
 }
@@ -34,14 +35,21 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
   onClose,
   onBackToLogin,
   userCredentials = [],
+  initialEmail = '',
   onPasswordResetSuccess,
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('student');
-  const [identifier, setIdentifier] = useState('');
+  const [identifier, setIdentifier] = useState(initialEmail);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialEmail) {
+      setIdentifier(initialEmail);
+    }
+  }, [initialEmail]);
 
   // 60-second cooldown to prevent email spam
   const [cooldownSeconds, setCooldownSeconds] = useState(0);

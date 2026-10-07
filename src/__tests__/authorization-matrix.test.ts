@@ -11,6 +11,7 @@ import { AuthenticatedUser, UserRole, ROLE_DEFINITIONS } from '../types/rbac';
 // Mock logger
 vi.mock('../lib/logger', () => ({
   logger: {
+    debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),

@@ -115,23 +115,26 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     }
   }, [isOpen, fetchPendingApprovals]);
 
-  const handleApprove = async (approval: PendingApproval) => {
+  const [selectedRoleOverride, setSelectedRoleOverride] = useState<Record<string, string>>({});
+
+  const handleApprove = async (approval: PendingApproval, roleOverride?: string) => {
     setApprovingId(approval.id);
     try {
-      const res = await fetch('/api/auth/users/provision', {
+      const finalRole = roleOverride || selectedRoleOverride[approval.id] || approval.requested_role || 'student';
+      const res = await fetch('/api/auth/approve-request', {
         method: 'POST',
         headers: getAuthHeaders(appUser),
         body: JSON.stringify({
           email: approval.email,
-          role: approval.requested_role,
+          identifier: approval.id,
+          role: finalRole,
           reason: approveReason[approval.id] || 'Approved by administrator via portal',
-          sourceRecord: approval.source_record,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setPendingApprovals(prev => prev.filter(p => p.id !== approval.id));
-      setSuccessToast(`Account for ${approval.name || approval.email} approved as ${approval.requested_role}.`);
+      setSuccessToast(`Account for ${approval.name || approval.email} approved as ${finalRole} in Supabase.`);
     } catch (err: any) {
       setPendingError(err.message || 'Approval failed');
     } finally {
@@ -139,12 +142,27 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     }
   };
 
-  const handleDenyApproval = (approval: PendingApproval) => {
+  const handleDenyApproval = async (approval: PendingApproval) => {
     setDenyingId(approval.id);
-    // Remove from local queue immediately; a future POST /deny endpoint can persist this
-    setPendingApprovals(prev => prev.filter(p => p.id !== approval.id));
-    setSuccessToast(`Access request for ${approval.name || approval.email} has been denied and removed.`);
-    setDenyingId(null);
+    try {
+      const res = await fetch('/api/auth/reject-request', {
+        method: 'POST',
+        headers: getAuthHeaders(appUser),
+        body: JSON.stringify({
+          email: approval.email,
+          identifier: approval.id,
+          reason: approveReason[approval.id] || 'Declined by administrator',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setPendingApprovals(prev => prev.filter(p => p.id !== approval.id));
+      setSuccessToast(`Access request for ${approval.name || approval.email} has been denied in Supabase.`);
+    } catch (err: any) {
+      setPendingError(err.message || 'Denial failed');
+    } finally {
+      setDenyingId(null);
+    }
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -934,6 +952,16 @@ Access Portal: ${window.location.origin}
                       </div>
                       <div className="flex flex-col items-end gap-2 flex-shrink-0">
                         <div className="flex items-center gap-1.5">
+                          <select
+                            value={selectedRoleOverride[approval.id] || approval.requested_role || 'student'}
+                            onChange={e => setSelectedRoleOverride(prev => ({ ...prev, [approval.id]: e.target.value }))}
+                            className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-slate-200 cursor-pointer"
+                          >
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="admin">Admin</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
                           <button onClick={() => handleDenyApproval(approval)} disabled={denyingId === approval.id || approvingId === approval.id}
                             className="px-3 py-1.5 text-[11px] font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer disabled:opacity-50">
                             Deny
@@ -946,7 +974,7 @@ Access Portal: ${window.location.origin}
                         <input type="text" placeholder="Approval reason (optional)"
                           value={approveReason[approval.id] || ''}
                           onChange={e => setApproveReason(prev => ({ ...prev, [approval.id]: e.target.value }))}
-                          className="w-48 px-2.5 py-1.5 text-[11px] font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                          className="w-56 px-2.5 py-1.5 text-[11px] font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                       </div>
                     </div>
                   </div>

@@ -93,15 +93,20 @@ export function classifyError(error: any, fallbackType: ErrorType = 'unknown'): 
   }
   // 3. Database Errors (Supabase / Postgres)
   else if (
-    code.startsWith('23') || // Integrity Constraint Violation
-    code.startsWith('42') || // Syntax / Access Rule Violation
-    code.startsWith('P0') || // Postgres-specific codes
-    message.toLowerCase().includes('supabase') ||
-    message.toLowerCase().includes('postgres') ||
-    message.toLowerCase().includes('database') ||
-    message.toLowerCase().includes('query') ||
-    message.toLowerCase().includes('relation') ||
-    message.toLowerCase().includes('permission denied')
+    fallbackType !== 'authentication' &&
+    !message.toLowerCase().includes('user') &&
+    !message.toLowerCase().includes('login') &&
+    !message.toLowerCase().includes('password') &&
+    !message.toLowerCase().includes('credential') &&
+    (code.startsWith('23') || // Integrity Constraint Violation
+      code.startsWith('42') || // Syntax / Access Rule Violation
+      code.startsWith('P0') || // Postgres-specific codes
+      message.toLowerCase().includes('supabase') ||
+      message.toLowerCase().includes('postgres') ||
+      message.toLowerCase().includes('database') ||
+      message.toLowerCase().includes('query') ||
+      message.toLowerCase().includes('relation') ||
+      message.toLowerCase().includes('permission denied'))
   ) {
     // Distinguish unauthorized database actions (RLS / access violations)
     if (
@@ -129,20 +134,54 @@ export function classifyError(error: any, fallbackType: ErrorType = 'unknown'): 
     type = 'unauthorized';
     userMessage = 'Access denied. You do not have sufficient permissions to perform this action.';
   }
-  // 5. Authentication Failures
+  // 5. Authentication Failures & Account Identity
   else if (
     status === 401 ||
+    fallbackType === 'authentication' ||
     message.toLowerCase().includes('incorrect password') ||
     message.toLowerCase().includes('invalid credentials') ||
+    message.toLowerCase().includes('invalid login credentials') ||
     message.toLowerCase().includes('suspended') ||
     message.toLowerCase().includes('no user') ||
-    message.toLowerCase().includes('auth')
+    message.toLowerCase().includes('user not found') ||
+    message.toLowerCase().includes('account not found') ||
+    message.toLowerCase().includes('email not found') ||
+    message.toLowerCase().includes('credentials not found') ||
+    message.toLowerCase().includes('user does not exist') ||
+    message.toLowerCase().includes('not found or credentials were invalid') ||
+    message.toLowerCase().includes('email not confirmed') ||
+    message.toLowerCase().includes('pending approval') ||
+    message.toLowerCase().includes('awaiting administrator approval') ||
+    message.toLowerCase().includes('auth') ||
+    (message.toLowerCase().includes('not found') &&
+      (message.toLowerCase().includes('user') ||
+        message.toLowerCase().includes('account') ||
+        message.toLowerCase().includes('email') ||
+        message.toLowerCase().includes('credential') ||
+        message.toLowerCase().includes('password') ||
+        message.toLowerCase().includes('student')))
   ) {
     type = 'authentication';
     if (message.toLowerCase().includes('suspended')) {
       userMessage = 'This account has been suspended by the administrator. Please contact Academic Affairs.';
-    } else if (message.toLowerCase().includes('incorrect password') || message.toLowerCase().includes('invalid credentials')) {
-      userMessage = 'The email, username, or password you entered is incorrect.';
+    } else if (
+      message.toLowerCase().includes('pending approval') ||
+      message.toLowerCase().includes('awaiting administrator approval') ||
+      message.toLowerCase().includes('awaiting approval')
+    ) {
+      userMessage = message; // Preserve informative approval status messages
+    } else if (message.toLowerCase().includes('not approved') || message.toLowerCase().includes('rejected')) {
+      userMessage = 'Your account registration was not approved. Please contact Academic Affairs at info@hteim.edu.';
+    } else if (message.toLowerCase().includes('email not confirmed')) {
+      userMessage = 'Email confirmation is pending. Please check your inbox or contact an administrator.';
+    } else if (
+      message.toLowerCase().includes('incorrect password') ||
+      message.toLowerCase().includes('invalid credentials') ||
+      message.toLowerCase().includes('invalid login credentials') ||
+      message.toLowerCase().includes('not found') ||
+      message.toLowerCase().includes('does not exist')
+    ) {
+      userMessage = 'The email, username, or password you entered is incorrect or not registered yet.';
     } else {
       userMessage = 'Authentication failed. Please verify your credentials and sign in again.';
     }
@@ -162,13 +201,20 @@ export function classifyError(error: any, fallbackType: ErrorType = 'unknown'): 
       userMessage = 'The AI Lesson Evaluator encountered an processing issue. Using local smart-matching heuristic.';
     }
   }
-  // 7. Missing Records
+  // 7. Missing Records (Academic / Library / Course Records)
   else if (
-    status === 404 ||
-    message.toLowerCase().includes('not found') ||
-    message.toLowerCase().includes('no record') ||
-    message.toLowerCase().includes('missing') ||
-    code === 'PGRST116' // Postgrest single record missing error
+    !message.toLowerCase().includes('user') &&
+    !message.toLowerCase().includes('account') &&
+    !message.toLowerCase().includes('email') &&
+    !message.toLowerCase().includes('credential') &&
+    !message.toLowerCase().includes('login') &&
+    !message.toLowerCase().includes('password') &&
+    !message.toLowerCase().includes('auth') &&
+    (status === 404 ||
+      message.toLowerCase().includes('not found') ||
+      message.toLowerCase().includes('no record') ||
+      message.toLowerCase().includes('missing') ||
+      code === 'PGRST116') // Postgrest single record missing error
   ) {
     type = 'missing';
     userMessage = 'The requested academic record or library resource could not be found.';

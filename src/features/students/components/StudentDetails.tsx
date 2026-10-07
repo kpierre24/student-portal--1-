@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, Mail, Phone, GraduationCap, Award, Calendar, FileText, Trash2, Edit3, UserX, AlertCircle } from 'lucide-react';
 import { Modal, Button, Badge, Card } from '../../../components/ui';
 import { StudentSummary, ACADEMIC_LEVELS, ClassDay } from '../../../types';
@@ -23,6 +23,7 @@ export function StudentDetails({
   onViewTranscript,
   classDays = [],
 }: StudentDetailsProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const { isAtRisk, isHonorRoll, attendanceDetails } = useStudent({
     student,
     classDays,
@@ -144,20 +145,55 @@ export function StudentDetails({
           </div>
         )}
 
+        {/* In-app Permanent Deletion Confirmation */}
+        {isConfirmingDelete && (
+          <div className="p-4 bg-rose-50 dark:bg-rose-950/90 border border-rose-300 dark:border-rose-800 rounded-xl space-y-3 animate-fadeIn my-2">
+            <div className="flex items-start gap-2 text-rose-900 dark:text-rose-200 text-xs">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-extrabold text-sm text-rose-950 dark:text-rose-100">Confirm Permanent Deletion</p>
+                <p className="mt-1 leading-relaxed">
+                  Permanently delete student <strong>{student.name}</strong> (ID: <code className="bg-rose-100 dark:bg-rose-900 px-1 py-0.5 rounded font-bold font-mono text-[11px]">{student.studentId || student.id || 'N/A'}</code>)?
+                </p>
+                <p className="mt-1 text-[11px] text-rose-800 dark:text-rose-300 font-semibold">
+                  ⚠️ This action cannot be undone. Attendance logs, tuition payments, assignment submissions, notes, and user accounts will be purged.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-rose-200 dark:border-rose-800/80">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  if (onDelete) {
+                    onDelete(student.studentId || student.id || student.name);
+                    setIsConfirmingDelete(false);
+                    onClose();
+                  }
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Yes, Permanently Delete All Records
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Action Controls */}
         <div className="flex items-center justify-between border-t border-[var(--md-outline-variant)] pt-3">
           {onDelete ? (
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                if (window.confirm(`Are you sure you want to remove student record for ${student.name}?`)) {
-                  onDelete(student.id || student.name);
-                  onClose();
-                }
-              }}
+              onClick={() => setIsConfirmingDelete(true)}
             >
-              <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Student & Records
             </Button>
           ) : (
             <div />
