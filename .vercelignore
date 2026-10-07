@@ -1,0 +1,35 @@
+# Dependencies
+node_modules
+.npm
+.eslintcache
+dist
+build
+
+# Testing
+coverage
+.nyc_output
+*.lcov
+
+# Production
+.next
+.env.production.local
+.env.test.local
+
+# IDEs
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+android/
+*.apk
+*.aab
+.copilot-azure/
+School-of-Ministry-2026-azure/
+test-results.json
