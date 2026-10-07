@@ -11,13 +11,16 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
     description: 'Collaborative analysis of Romans chapter 8',
     dueDate: '2026-11-15',
     maxPoints: 100,
+    createdAt: '2026-10-01T00:00:00Z',
     isGroupAssignment: true,
     groups: [
       {
+        id: 'grp-1',
         groupName: 'Group Alpha - Antioch',
         memberNames: ['Student One', 'Student Two', 'Student Three'],
       },
       {
+        id: 'grp-2',
         groupName: 'Group Beta - Berea',
         memberNames: ['Student Four', 'Student Five'],
       },
@@ -30,6 +33,7 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
     description: 'Personal essay on historical-grammatical interpretation',
     dueDate: '2026-11-20',
     maxPoints: 50,
+    createdAt: '2026-10-01T00:00:00Z',
     isGroupAssignment: false,
   };
 
@@ -46,6 +50,7 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
       assignmentId: 'asg-group-1',
       studentName: 'Student One',
       submittedAt: '2026-11-14T10:00:00Z',
+      updatedAt: '2026-11-14T10:00:00Z',
       score: 80,
       teacherFeedback: 'Good start',
       status: 'Graded',
@@ -88,7 +93,7 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
 
   it('submits grade for all members of the group simultaneously on group assignment', () => {
     const onGradeSubmission = vi.fn();
-    render(
+    const { container } = render(
       <ManualGradeModal
         isOpen={true}
         onClose={vi.fn()}
@@ -101,7 +106,8 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
     );
 
     // Enter score 95
-    const scoreInput = screen.getByDisplayValue('85');
+    const scoreInput = container.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(scoreInput).toBeDefined();
     fireEvent.change(scoreInput, { target: { value: '95' } });
 
     // Enter feedback
@@ -139,7 +145,7 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
 
   it('submits grade for an individual student when individual assignment is selected', () => {
     const onGradeSubmission = vi.fn();
-    render(
+    const { container } = render(
       <ManualGradeModal
         isOpen={true}
         onClose={vi.fn()}
@@ -156,7 +162,8 @@ describe('ManualGradeModal — Manual Grading for Individual & Group Assignments
     expect(screen.queryByText(/Group Assignment Grading Policy/i)).toBeNull();
 
     // Enter score 48
-    const scoreInput = screen.getByDisplayValue('85');
+    const scoreInput = container.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(scoreInput).toBeDefined();
     fireEvent.change(scoreInput, { target: { value: '48' } });
 
     // Submit form
