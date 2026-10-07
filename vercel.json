@@ -4,7 +4,6 @@
   "installCommand": "npm ci",
   "framework": null,
   "outputDirectory": "dist",
-  "public": false,
   "rewrites": [
     {
       "source": "/api/:path*",
