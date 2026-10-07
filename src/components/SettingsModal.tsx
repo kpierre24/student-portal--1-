@@ -73,6 +73,10 @@ interface SettingsModalProps {
   onOpenAdminTools?: () => void;
   onOpenCohortManager?: () => void;
   onPhotosMigrated?: () => void;
+  manualTuitionOnly?: boolean;
+  setManualTuitionOnly?: (val: boolean) => void;
+  manualAttendanceOnly?: boolean;
+  setManualAttendanceOnly?: (val: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -98,7 +102,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenMobileDownloadCenter,
   onOpenAdminTools,
   onOpenCohortManager,
-  onPhotosMigrated
+  onPhotosMigrated,
+  manualTuitionOnly = true,
+  setManualTuitionOnly,
+  manualAttendanceOnly = true,
+  setManualAttendanceOnly,
 }) => {
   const dialogRef = useAccessibleModal(isOpen, onClose);
   const [activeTab, setActiveTab] = useState<'appearance' | 'sync' | 'about'>('appearance');
@@ -733,6 +741,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <p className="text-[10px] text-slate-500 mt-1 leading-normal">
                           Decides what happens when attendance data imported from Google Sheets differs from manual edits you made inside the portal.
                         </p>
+                      </div>
+
+                      {/* Manual Updates Only Overrides */}
+                      <div className="border-t border-slate-200 pt-3 mt-1 space-y-2">
+                        <label className="block font-bold text-slate-700">Manual Updates Preference Overrides</label>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-start gap-2.5 font-bold text-slate-700 cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={manualAttendanceOnly}
+                              onChange={(e) => setManualAttendanceOnly?.(e.target.checked)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div>
+                              <span>Manual Attendance Capture Mode Only</span>
+                              <p className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                If active, attendance records are managed manually inside the portal and are NOT synced from Google Sheets.
+                              </p>
+                            </div>
+                          </label>
+
+                          <label className="flex items-start gap-2.5 font-bold text-slate-700 cursor-pointer">
+                            <input 
+                              type="checkbox"
+                              checked={manualTuitionOnly}
+                              onChange={(e) => setManualTuitionOnly?.(e.target.checked)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 mt-0.5"
+                            />
+                            <div>
+                              <span>Manual Tuition Updates Mode Only</span>
+                              <p className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                If active, student tuition ledger accounts and payments are managed manually and are NOT pulled from Google Sheets.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>

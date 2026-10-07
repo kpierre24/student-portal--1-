@@ -428,7 +428,7 @@ export function usePortalState() {
         const parsed: ClassDay[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = parsed.filter(d => d && d.id && !isObsoleteLegacyClassDay(d.id) && !isObsoleteLegacyClassDay(d.name));
-          if (cleaned.length >= 14) return cleaned;
+          if (cleaned.length > 0) return cleaned;
         }
       } catch (e) {}
     }
@@ -641,6 +641,8 @@ export function usePortalState() {
     handleRemoveRecentSheet,
     manualTuitionOnly,
     setManualTuitionOnly,
+    manualAttendanceOnly,
+    setManualAttendanceOnly,
   } = sheetsSync;
 
   handleLoadSheetsRef.current = handleLoadSheets;
@@ -2803,6 +2805,8 @@ export function usePortalState() {
     tuitionSyncStats,
     manualTuitionOnly,
     setManualTuitionOnly,
+    manualAttendanceOnly,
+    setManualAttendanceOnly,
     handleSyncTuitionSheet,
     activePublicQuiz,
     isLoadingPublicQuiz,

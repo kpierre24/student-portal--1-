@@ -13,7 +13,7 @@ export const useAttendanceData = () => {
         const parsed: ClassDay[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleaned = parsed.filter(d => d && d.id && !isObsoleteLegacyClassDay(d.id) && !isObsoleteLegacyClassDay(d.name));
-          if (cleaned.length >= 14) return cleaned;
+          if (cleaned.length > 0) return cleaned;
         }
       } catch (e) {}
     }

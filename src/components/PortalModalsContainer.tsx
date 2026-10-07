@@ -271,6 +271,10 @@ export const PortalModalsContainer: React.FC<PortalModalsContainerProps> = (rawP
         }}
         onOpenCohortManager={props.appUser?.role === 'admin' ? () => props.setActiveCohortId(props.cohorts[0]?.id || '') : undefined}
         onPhotosMigrated={props.handlePushToCloud}
+        manualTuitionOnly={props.manualTuitionOnly}
+        setManualTuitionOnly={props.setManualTuitionOnly}
+        manualAttendanceOnly={props.manualAttendanceOnly}
+        setManualAttendanceOnly={props.setManualAttendanceOnly}
       />
 
       {/* Cohort Management Modal */}

@@ -795,7 +795,7 @@ CREATE POLICY "audit_history_select_policy" ON public.audit_history
 CREATE POLICY "audit_history_insert_policy" ON public.audit_history
   FOR INSERT TO authenticated
   WITH CHECK (
-    actor_user_id = auth.uid()::TEXT
+    actor_user_id = auth.uid()
     OR public.is_admin()
     OR auth.uid() IS NOT NULL
   );

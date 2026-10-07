@@ -245,9 +245,10 @@ export function StudentsPage({
         }}
         onDelete={(id) => {
           setIsDetailsOpen(false);
-          deleteStudent(id);
-          if (onDeleteStudent && selectedStudent) {
-            onDeleteStudent(selectedStudent.name);
+          if (onDeleteStudent) {
+            onDeleteStudent(id);
+          } else {
+            deleteStudent(id);
           }
         }}
       />
