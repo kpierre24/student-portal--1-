@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, GraduationCap, FileText, ChevronRight, AlertTriangle, UserX } from 'lucide-react';
+import { Award, GraduationCap, FileText, ChevronRight, AlertTriangle, UserX, Users } from 'lucide-react';
 import { DataTable, Column } from '../../../components/tables/DataTable';
 import { EmptyState } from '../../../components/ui';
 import { StudentSummary, ACADEMIC_LEVELS } from '../../../types';
@@ -61,6 +61,26 @@ export function StudentTable({
           <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border ${level.color}`}>
             <GraduationCap className="h-3 w-3" />
             {level.badge}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'groupName',
+      header: 'Assessment Group',
+      render: (student) => {
+        const groupDisplay = student.groupName || (student.groups && student.groups.length > 0 ? student.groups[0] : null);
+        if (!groupDisplay) {
+          return (
+            <span className="text-[10px] text-slate-400 font-medium italic">
+              — Unassigned
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 shadow-2xs">
+            <Users className="h-3 w-3 text-indigo-500 shrink-0" />
+            <span className="truncate max-w-[140px]">{groupDisplay}</span>
           </span>
         );
       },

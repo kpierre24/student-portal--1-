@@ -4,6 +4,30 @@ import { logger } from './logger';
 
 export const DEFAULT_SUPABASE_PROJECT_URL = 'https://mjaloptcpeytvecbxbza.supabase.co';
 
+export function isPlaceholderKey(key?: string | null): boolean {
+  if (!key) return true;
+  const lower = key.toLowerCase().trim();
+  return (
+    lower.includes('placeholder') ||
+    lower.startsWith('your-') ||
+    lower.includes('your-anon') ||
+    lower.includes('your-key') ||
+    lower.includes('your-supabase') ||
+    lower.length < 20
+  );
+}
+
+export function isSupabaseConfiguredClient(): boolean {
+  const url = getResolvedSupabaseUrl();
+  const key = getResolvedSupabaseAnonKey();
+  return Boolean(
+    url &&
+    key &&
+    !isPlaceholderKey(key) &&
+    !url.includes('your-project.supabase.co')
+  );
+}
+
 export function getResolvedSupabaseUrl(): string {
   if (typeof window !== 'undefined') {
     const custom = localStorage.getItem('hteim_supabase_custom_url');
@@ -19,13 +43,13 @@ export function getResolvedSupabaseUrl(): string {
 export function getResolvedSupabaseAnonKey(): string {
   if (typeof window !== 'undefined') {
     const customKey = localStorage.getItem('hteim_supabase_custom_anon_key');
-    if (customKey && customKey.trim()) return customKey.trim();
+    if (customKey && customKey.trim() && !isPlaceholderKey(customKey)) return customKey.trim();
   }
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  if (envKey && !envKey.includes('placeholder')) {
+  if (envKey && !isPlaceholderKey(envKey)) {
     return envKey.trim();
   }
-  return envKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
+  return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder';
 }
 
 export function createPortalSupabaseClient(customUrl?: string, customKey?: string) {

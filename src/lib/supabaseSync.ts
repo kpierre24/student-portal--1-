@@ -61,28 +61,69 @@ export async function loadFromSupabase(userEmail: string | null | undefined): Pr
       }
     }
 
+    // Fall back to server /api/state composition & disk authoritative backup
+    if (typeof window !== 'undefined') {
+      try {
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/state', { headers });
+        if (res.ok) {
+          const body = await res.json();
+          if (body?.state) {
+            return body.state;
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     return null;
   } catch (error: any) {
     if (error.message === 'TABLE_NOT_FOUND') {
       throw error;
     }
     logger.warn("Unable to load state from Supabase:", error?.message || error);
+
+    // Fall back to server /api/state
+    if (typeof window !== 'undefined') {
+      try {
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/state', { headers });
+        if (res.ok) {
+          const body = await res.json();
+          if (body?.state) {
+            return body.state;
+          }
+        }
+      } catch {
+        // Non-blocking
+      }
+    }
+
     return null;
   }
 }
 
 export async function saveToSupabase(
   userEmail: string | null | undefined,
-  state: SyncedAppState
+  state: SyncedAppState,
+  actionDescription?: string
 ): Promise<boolean> {
   try {
-    // Guard: Demo state must never be saved to production database
-    if (state.dataSource === 'demo' || (state as any).isDemo === true) {
-      logger.warn('[SupabaseSync] Blocked attempt to save demo state into production database.');
+    if (!state || typeof state !== 'object') return false;
+
+    // Sanitize state: strips synthetic demo records/assignments/users/payments,
+    // converts dataSource to 'production', and strips isDemo flag.
+    const cleanState = sanitizeProductionState(state);
+
+    if ((cleanState as any).isDemo === true || (cleanState as any)._isPureDemoSimulation === true) {
+      logger.warn('[SupabaseSync] Blocked attempt to save purely synthetic demo fixture into production database.');
       return false;
     }
-
-    const cleanState = sanitizeProductionState(state);
 
     const docId = userEmail 
       ? `user_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}` 
@@ -93,60 +134,80 @@ export async function saveToSupabase(
     const nextVer = (typeof (cleanState as any).version === 'number' ? (cleanState as any).version + 1 : 2);
     (cleanState as any).version = nextVer;
 
-    let { error } = await supabase
-      .from('app_states')
-      .upsert({
-        id: docId,
-        state: cleanState,
-        version: nextVer,
-        updated_at: timestamp,
-        updated_by: updater
-      });
+    let supabaseSuccess = false;
+    let apiSuccess = false;
 
-    if (error && (error.message?.includes('version') || error.code === '42703')) {
-      const fallback = await supabase
+    // 1. Attempt direct Supabase app_states upsert
+    try {
+      let { error } = await supabase
         .from('app_states')
         .upsert({
           id: docId,
           state: cleanState,
+          version: nextVer,
           updated_at: timestamp,
           updated_by: updater
         });
-      error = fallback.error;
-    }
 
-    if (error) {
-      if (error.code === '42P01') {
+      if (error && (error.message?.includes('version') || error.code === '42703')) {
+        const fallback = await supabase
+          .from('app_states')
+          .upsert({
+            id: docId,
+            state: cleanState,
+            updated_at: timestamp,
+            updated_by: updater
+          });
+        error = fallback.error;
+      }
+
+      if (!error) {
+        supabaseSuccess = true;
+        if (docId !== 'shared_default_state') {
+          try {
+            await supabase
+              .from('app_states')
+              .upsert({
+                id: 'shared_default_state',
+                state: cleanState,
+                version: nextVer,
+                updated_at: timestamp,
+                updated_by: updater
+              });
+          } catch {}
+        }
+      } else if (error.code === '42P01') {
         throw new Error('TABLE_NOT_FOUND');
       }
-      return false;
+    } catch (sbErr: any) {
+      if (sbErr?.message === 'TABLE_NOT_FOUND') throw sbErr;
+      logger.warn('[SupabaseSync] Direct Supabase persistence notice:', sbErr?.message || sbErr);
     }
 
-    // Always keep shared_default_state updated so published or guest views get the latest workspace state
-    if (docId !== 'shared_default_state') {
+    // 2. Also dispatch to /api/state to synchronize to the backend and authoritative store
+    if (typeof window !== 'undefined') {
       try {
-        await supabase
-          .from('app_states')
-          .upsert({
-            id: 'shared_default_state',
+        const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const resp = await fetch('/api/state', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
             state: cleanState,
-            version: nextVer,
-            updated_at: timestamp,
-            updated_by: updater
-          });
+            userEmail,
+            updatedAt: timestamp,
+          }),
+        });
+        if (resp.ok) {
+          apiSuccess = true;
+        }
       } catch {
-        await supabase
-          .from('app_states')
-          .upsert({
-            id: 'shared_default_state',
-            state: cleanState,
-            updated_at: timestamp,
-            updated_by: updater
-          });
+        // Non-blocking network fallback
       }
     }
 
-    return true;
+    return supabaseSuccess || apiSuccess;
   } catch (error: any) {
     if (error.message === 'TABLE_NOT_FOUND') {
       throw error;

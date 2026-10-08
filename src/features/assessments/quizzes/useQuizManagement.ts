@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { QuizAssignment, QuizAttempt, CustomAssignment } from '../../../types';
 import { DEFAULT_QUIZ_TEMPLATES, gradeQuizAttempt } from '../../../data/quizTemplates';
 import { supabase } from '../../../lib/supabaseClient';
+import { portalApi } from '../../../services/api/portalApiClient';
+import { saveToSupabase } from '../../../lib/supabaseSync';
 
 export interface UseQuizManagementReturn {
   quizzes: QuizAssignment[];
@@ -182,11 +184,11 @@ export function useQuizManagement(
       quizData: quiz
     };
 
+    let updatedList: CustomAssignment[] = [];
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_QUIZZES_KEY);
       const parsed: CustomAssignment[] = saved ? JSON.parse(saved) : [];
       const idx = parsed.findIndex(a => a.id === quiz.id || a.quizData?.id === quiz.id);
-      let updatedList: CustomAssignment[];
       if (idx >= 0) {
         updatedList = [...parsed];
         updatedList[idx] = customAsgObj;
@@ -210,13 +212,66 @@ export function useQuizManagement(
       }
       onAssignmentsChange(updatedCustom);
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hteim_quiz_saved', { detail: customAsgObj }));
+    }
+
+    // Synchronize to portalApi so Express backend + relational tables receive the quiz
+    try {
+      portalApi.createAssignment({
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description || '',
+        courseCode: quiz.courseCode,
+        dueDate: quiz.dueDate,
+        maxPoints: quiz.totalPoints,
+        isPublished: quiz.isPublished !== false,
+        shareCode: quiz.shareCode,
+        rubric: {
+          questions: quiz.questions,
+          settings: quiz.settings,
+        },
+        quizData: quiz,
+      } as any).catch(() => {});
+    } catch {
+      // safe fallback
+    }
+
+    // Trigger cloud state synchronization to Supabase app_states
+    try {
+      saveToSupabase(undefined, {
+        customAssignments: updatedList,
+      } as any).catch(() => {});
+    } catch {}
   }, [initialAssignments, onAssignmentsChange]);
 
   const deleteQuiz = useCallback(async (quizId: string) => {
     setQuizzes(prev => prev.filter(q => q.id !== quizId));
+    let remainingList: CustomAssignment[] = [];
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_QUIZZES_KEY);
+      const parsed: CustomAssignment[] = saved ? JSON.parse(saved) : [];
+      remainingList = parsed.filter(a => a.id !== quizId && a.quizData?.id !== quizId);
+      localStorage.setItem(LOCAL_STORAGE_QUIZZES_KEY, JSON.stringify(remainingList));
+    } catch {}
+
     if (onAssignmentsChange && initialAssignments) {
       onAssignmentsChange(initialAssignments.filter(a => a.id !== quizId && a.quizData?.id !== quizId));
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('hteim_quiz_deleted', { detail: { quizId } }));
+    }
+
+    try {
+      portalApi.deleteAssignment(quizId).catch(() => {});
+    } catch {}
+
+    try {
+      saveToSupabase(undefined, {
+        customAssignments: remainingList,
+      } as any).catch(() => {});
+    } catch {}
   }, [initialAssignments, onAssignmentsChange]);
 
   const duplicateQuiz = useCallback(async (quiz: QuizAssignment): Promise<QuizAssignment> => {

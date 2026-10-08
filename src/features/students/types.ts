@@ -13,6 +13,7 @@ export interface StudentFilterOptions {
   gradeFilter: StudentGradeFilter;
   enrollmentFilter?: StudentEnrollmentFilter;
   cohortId?: string;
+  groupFilter?: string;
   sortBy: StudentSortField;
   sortDirection: StudentSortDirection;
 }
@@ -28,6 +29,8 @@ export interface StudentFormData {
   photoUrl?: string;
   note?: string;
   cohortId?: string;
+  groupId?: string;
+  groupName?: string;
   enrollmentStatus?: StudentEnrollmentStatus;
   isDroppedOut?: boolean;
   dropoutReason?: string;

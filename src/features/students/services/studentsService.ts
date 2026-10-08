@@ -25,6 +25,24 @@ export function filterStudents(
       if (student.cohortId !== options.cohortId) return false;
     }
 
+    // Group filter match
+    if (options.groupFilter && options.groupFilter !== 'all') {
+      if (options.groupFilter === 'unassigned') {
+        if (student.groupId || student.groupName) return false;
+      } else {
+        const normFilter = options.groupFilter.toLowerCase().trim();
+        const studentGrpName = (student.groupName || '').toLowerCase().trim();
+        const studentGrpId = (student.groupId || '').toLowerCase().trim();
+        const studentGrps = (student.groups || []).map((g) => g.toLowerCase().trim());
+        const matchesGroup =
+          studentGrpName === normFilter ||
+          studentGrpId === normFilter ||
+          studentGrps.includes(normFilter) ||
+          studentGrpName.includes(normFilter);
+        if (!matchesGroup) return false;
+      }
+    }
+
     // Enrollment status filter match
     const isDropped = student.isDroppedOut || student.enrollmentStatus === 'dropped_out' || student.enrollmentStatus === 'withdrawn';
     if (options.enrollmentFilter === 'active' && isDropped) return false;
@@ -154,6 +172,9 @@ export function createStudentSummaryFromForm(
     isDroppedOut: isDropped,
     dropoutReason: formData.dropoutReason || existingStudent?.dropoutReason,
     dropoutDate: formData.dropoutDate || existingStudent?.dropoutDate,
+    groupId: formData.groupId ?? existingStudent?.groupId,
+    groupName: formData.groupName ?? existingStudent?.groupName,
+    groups: formData.groupName ? [formData.groupName] : existingStudent?.groups,
     rate: existingStudent?.rate ?? 100,
     attended: existingStudent?.attended ?? 0,
     totalDays: existingStudent?.totalDays ?? 0,

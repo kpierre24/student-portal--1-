@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { studentsService } from './studentsService';
 import { attendanceService } from './attendanceService';
 import { academicsService } from './academicsService';
@@ -181,6 +183,46 @@ export const stateHydrationService = {
         }
       });
 
+      // Hydrate library resources and classroom media from app_states snapshot
+      let libraryResourcesList: any[] = [];
+      let classroomMediaList: any[] = [];
+      try {
+        const supabase = getServerSupabase();
+        const { data: stateDoc } = await supabase
+          .from('app_states')
+          .select('state')
+          .eq('id', 'shared_default_state')
+          .maybeSingle();
+        if (stateDoc?.state?.libraryResources && Array.isArray(stateDoc.state.libraryResources)) {
+          libraryResourcesList = stateDoc.state.libraryResources;
+        }
+        if (stateDoc?.state?.classroomMedia && Array.isArray(stateDoc.state.classroomMedia)) {
+          classroomMediaList = stateDoc.state.classroomMedia;
+        }
+      } catch (err) {
+        // Non-blocking app_states pull
+      }
+
+      // Check disk authoritative state backup if library or media are empty
+      if (libraryResourcesList.length === 0 || classroomMediaList.length === 0) {
+        try {
+          const diskPath = path.join(process.cwd(), 'data', 'authoritative_state.json');
+          const distDiskPath = path.join(process.cwd(), 'dist', 'data', 'authoritative_state.json');
+          const targetPath = fs.existsSync(diskPath) ? diskPath : (fs.existsSync(distDiskPath) ? distDiskPath : null);
+          if (targetPath) {
+            const parsed = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
+            if (libraryResourcesList.length === 0 && Array.isArray(parsed?.libraryResources)) {
+              libraryResourcesList = parsed.libraryResources;
+            }
+            if (classroomMediaList.length === 0 && Array.isArray(parsed?.classroomMedia)) {
+              classroomMediaList = parsed.classroomMedia;
+            }
+          }
+        } catch {
+          // Non-blocking disk fallback
+        }
+      }
+
       // Assemble unified authoritative state composed dynamically from relational tables
       const composedState = {
         // Metadata & version
@@ -217,8 +259,9 @@ export const stateHydrationService = {
         receipts: [],
         adjustments: [],
 
-        // Library & Config
-        libraryResources: [],
+        // Library & Media Domain
+        libraryResources: libraryResourcesList,
+        classroomMedia: classroomMediaList,
         sheetsUrl: '',
         portalConfig: {
           policyThreshold: '75%',

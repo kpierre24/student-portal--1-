@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, GraduationCap, AlertCircle, Calendar } from 'lucide-react';
+import { User, Mail, GraduationCap, AlertCircle, Calendar, Users } from 'lucide-react';
 import { Modal, Button } from '../../../components/ui';
 import { StudentSummary, ACADEMIC_LEVELS, StudentEnrollmentStatus } from '../../../types';
 import { StudentFormData } from '../types';
+import { loadPermanentAssessmentGroups, assignStudentToGroup, savePermanentAssessmentGroups } from '../../../services/assessmentGroupsService';
 
 export interface StudentFormProps {
   isOpen: boolean;
@@ -28,10 +29,18 @@ export function StudentForm({
     enrolledModule: '',
     note: '',
     cohortId: 'HTEIM-2026',
+    groupId: '',
+    groupName: '',
     enrollmentStatus: 'active',
     dropoutReason: '',
     dropoutDate: '',
   });
+
+  const [availableGroups, setAvailableGroups] = useState(() => loadPermanentAssessmentGroups());
+
+  useEffect(() => {
+    setAvailableGroups(loadPermanentAssessmentGroups());
+  }, [isOpen]);
 
   useEffect(() => {
     if (initialData) {
@@ -45,6 +54,8 @@ export function StudentForm({
         enrolledModule: initialData.enrolledModule || '',
         note: initialData.note || '',
         cohortId: initialData.cohortId || 'HTEIM-2026',
+        groupId: initialData.groupId || '',
+        groupName: initialData.groupName || '',
         enrollmentStatus: initialData.enrollmentStatus || (initialData.isDroppedOut ? 'dropped_out' : 'active'),
         dropoutReason: initialData.dropoutReason || '',
         dropoutDate: initialData.dropoutDate || (initialData.isDroppedOut ? new Date().toISOString().slice(0, 10) : ''),
@@ -59,6 +70,8 @@ export function StudentForm({
         enrolledModule: '',
         note: '',
         cohortId: 'HTEIM-2026',
+        groupId: '',
+        groupName: '',
         enrollmentStatus: 'active',
         dropoutReason: '',
         dropoutDate: '',
@@ -69,6 +82,14 @@ export function StudentForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
+
+    // Sync student group assignment to permanent groups store
+    if (formData.name.trim()) {
+      const current = loadPermanentAssessmentGroups();
+      const updated = assignStudentToGroup(current, formData.name.trim(), formData.groupName || null);
+      savePermanentAssessmentGroups(updated);
+    }
+
     onSubmit(formData);
     onClose();
   };
@@ -168,6 +189,38 @@ export function StudentForm({
               <option value="leave_of_absence">🔵 Leave of Absence</option>
             </select>
           </div>
+        </div>
+
+        {/* Permanent Assessment & Ministry Group */}
+        <div>
+          <label className="block text-xs font-bold text-[var(--md-on-surface)] mb-1">
+            Permanent Assessment & Study Group
+          </label>
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--md-on-surface-variant)]" />
+            <select
+              value={formData.groupName || ''}
+              onChange={(e) => {
+                const selectedGrp = availableGroups.find((g) => g.groupName === e.target.value);
+                setFormData({
+                  ...formData,
+                  groupName: e.target.value,
+                  groupId: selectedGrp?.id || '',
+                });
+              }}
+              className="w-full rounded-xl border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] py-2 pl-9 pr-3 text-xs font-semibold text-[var(--md-on-surface)] transition focus:border-[var(--md-primary)] focus:outline-none"
+            >
+              <option value="">Unassigned (No Group)</option>
+              {availableGroups.map((grp) => (
+                <option key={grp.id} value={grp.groupName}>
+                  👥 {grp.groupName} ({grp.memberNames.length} members)
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="mt-1 text-[11px] text-[var(--md-on-surface-variant)]">
+            Permanent group fixture used for collaborative assessments, ministry practicum, and grading.
+          </p>
         </div>
 
         {/* Dropout Reason & Date (Conditional if Dropped Out / Withdrawn) */}

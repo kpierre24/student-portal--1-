@@ -601,7 +601,13 @@ export type AssignmentGroup = {
   id: string;
   groupName: string;
   memberNames: string[];
+  description?: string;
+  leaderName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
+
+export type AssessmentGroup = AssignmentGroup;
 
 export type CustomAssignment = {
   id: string;
@@ -786,6 +792,9 @@ export type StudentSummary = {
   isDroppedOut?: boolean;
   dropoutReason?: string;
   dropoutDate?: string;
+  groupId?: string;
+  groupName?: string;
+  groups?: string[];
 };
 
 export type StudentRecord = StudentSummary;

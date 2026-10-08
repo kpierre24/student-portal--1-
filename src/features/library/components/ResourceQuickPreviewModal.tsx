@@ -22,7 +22,8 @@ import {
   Tag,
   Sparkles,
   Eye,
-  Info
+  Info,
+  BrainCircuit
 } from 'lucide-react';
 import { LearningResource } from '../types';
 import { getDownloadableInfo } from './LibraryHomepage';
@@ -51,12 +52,73 @@ export const ResourceQuickPreviewModal: React.FC<ResourceQuickPreviewModalProps>
 }) => {
   const [isFav, setIsFav] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  
+  // AI summary states
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [loadingAiSummary, setLoadingAiSummary] = useState(false);
+  const [aiError, setAiError] = useState(false);
 
   useEffect(() => {
     if (resource?.id) {
       setIsFav(isResourceFavorite(resource.id));
     }
   }, [resource?.id]);
+
+  // Fetch AI summary when modal opens
+  useEffect(() => {
+    if (isOpen && resource?.id) {
+      const cacheKey = `ai_summary_${resource.id}`;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        setAiSummary(cached);
+        setLoadingAiSummary(false);
+        setAiError(false);
+      } else {
+        setAiSummary(null);
+        setLoadingAiSummary(true);
+        setAiError(false);
+
+        fetch('/api/ai/summarize-resource', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            resourceId: resource.id,
+            title: resource.title,
+            category: resource.category,
+            description: resource.description,
+            author: resource.author || resource.uploadedBy,
+            fullContent: resource.fullContent,
+          }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error('Failed to fetch AI summary');
+            return res.json();
+          })
+          .then((data) => {
+            if (data.success && data.summary) {
+              setAiSummary(data.summary);
+              sessionStorage.setItem(cacheKey, data.summary);
+            } else {
+              throw new Error('Invalid response payload');
+            }
+          })
+          .catch((err) => {
+            console.error('Gemini summary generation failed:', err);
+            setAiError(true);
+          })
+          .finally(() => {
+            setLoadingAiSummary(false);
+          });
+      }
+    } else {
+      // Clean up state on close
+      setAiSummary(null);
+      setLoadingAiSummary(false);
+      setAiError(false);
+    }
+  }, [isOpen, resource?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -214,6 +276,33 @@ export const ResourceQuickPreviewModal: React.FC<ResourceQuickPreviewModalProps>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
               {synopsis}
             </div>
+          </div>
+
+          {/* AI Generated Theological Insights */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+              <BrainCircuit className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              Theological AI Insights
+            </h3>
+            {loadingAiSummary ? (
+              <div className="p-4 bg-indigo-50/20 dark:bg-indigo-950/10 border border-indigo-100/50 dark:border-indigo-950/30 rounded-xl flex items-center gap-3 animate-pulse">
+                <Sparkles className="w-4 h-4 text-indigo-500 animate-spin shrink-0" />
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  Gemini is synthesizing key theological principles...
+                </span>
+              </div>
+            ) : aiError ? (
+              <div className="p-3 bg-rose-50/40 dark:bg-rose-950/10 border border-rose-100/50 dark:border-rose-950/30 rounded-xl text-xs text-rose-600 dark:text-rose-400">
+                Could not retrieve AI summary. Please check your network connection or try again later.
+              </div>
+            ) : aiSummary ? (
+              <div className="p-4 bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100/60 dark:border-indigo-900/40 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed relative overflow-hidden shadow-xs">
+                <div className="absolute top-0 right-0 p-1">
+                  <Sparkles className="w-3 h-3 text-indigo-400/80 animate-pulse" />
+                </div>
+                <p className="italic font-medium">{aiSummary}</p>
+              </div>
+            ) : null}
           </div>
 
           {/* Key Metadata Grid */}

@@ -30,8 +30,10 @@ import {
   HardDriveDownload,
   FileDown,
   Loader2,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react';
+import { testSupabaseConnection } from '../../../lib/supabaseSync';
 import { ResourceQuickPreviewModal } from './ResourceQuickPreviewModal';
 import { LearningResource, POPULAR_THEOLOGICAL_TAGS } from '../types';
 import { useLibrarySearch, ContinueLearningItem } from '../hooks/useLibrarySearch';
@@ -117,6 +119,10 @@ interface LibraryHomepageProps {
   onSelectCourse?: (courseCode: string, courseTitle: string) => void;
   onDownloadResource?: (resource: LearningResource | any, e?: React.MouseEvent) => void;
   userRole?: string;
+  isSyncing?: boolean;
+  syncError?: string | null;
+  lastSyncedAt?: string | null;
+  onTriggerSync?: () => void;
 }
 
 export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
@@ -126,7 +132,11 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
   onOpenMyLibrary,
   onSelectCourse,
   onDownloadResource,
-  userRole
+  userRole,
+  isSyncing: propIsSyncing,
+  syncError: propSyncError,
+  lastSyncedAt: propLastSyncedAt,
+  onTriggerSync
 }) => {
   const {
     filters,
@@ -162,6 +172,77 @@ export const LibraryHomepage: React.FC<LibraryHomepageProps> = ({
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
   const [processingDownloadIds, setProcessingDownloadIds] = useState<Set<string>>(new Set());
   const [quickPreviewResource, setQuickPreviewResource] = useState<LearningResource | null>(null);
+
+  // Real-time Supabase Database Sync Status State
+  const [internalSyncing, setInternalSyncing] = useState(false);
+  const [internalError, setInternalError] = useState<string | null>(null);
+  const [internalLastSynced, setInternalLastSynced] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hteim_last_supabase_sync_time') || null;
+    }
+    return null;
+  });
+
+  const isSyncing = propIsSyncing !== undefined ? propIsSyncing : internalSyncing;
+  const syncError = propSyncError !== undefined ? propSyncError : internalError;
+  const lastSynced = propLastSyncedAt !== undefined ? propLastSyncedAt : internalLastSynced;
+
+  const syncStatus: 'synced' | 'syncing' | 'error' = isSyncing
+    ? 'syncing'
+    : syncError
+    ? 'error'
+    : 'synced';
+
+  // Listen for real-time synchronization broadcast events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleSyncStatus = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      if (typeof detail.isSyncing === 'boolean') setInternalSyncing(detail.isSyncing);
+      if (detail.syncError !== undefined) setInternalError(detail.syncError);
+      if (detail.lastSyncedAt) {
+        setInternalLastSynced(detail.lastSyncedAt);
+        localStorage.setItem('hteim_last_supabase_sync_time', detail.lastSyncedAt);
+      }
+    };
+
+    window.addEventListener('hteim_sync_status', handleSyncStatus);
+    return () => {
+      window.removeEventListener('hteim_sync_status', handleSyncStatus);
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    if (onTriggerSync) {
+      onTriggerSync();
+      return;
+    }
+
+    setInternalSyncing(true);
+    setInternalError(null);
+    try {
+      const isOnline = await testSupabaseConnection();
+      if (!isOnline) {
+        setInternalError('Database offline or unreachable');
+      } else {
+        const timeStr = new Date().toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        setInternalLastSynced(timeStr);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('hteim_last_supabase_sync_time', timeStr);
+        }
+      }
+    } catch (err: any) {
+      setInternalError(err?.message || 'Sync error');
+    } finally {
+      setInternalSyncing(false);
+    }
+  };
 
   // Load downloaded IDs from localStorage
   useEffect(() => {
@@ -360,6 +441,74 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
       <section className="bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-6 md:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
+        {/* Real-time Supabase Database Sync Status Indicator Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-4 border-b border-slate-800/80">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-amber-400/90">
+              School of Ministry Theological Repository
+            </span>
+          </div>
+
+          {/* Real-time Supabase Database Sync Status Indicator with pulsing dot */}
+          <div
+            data-testid="supabase-sync-indicator"
+            role="status"
+            aria-live="polite"
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all shadow-xs ${
+              syncStatus === 'syncing'
+                ? 'bg-amber-500/15 border border-amber-500/35 text-amber-300'
+                : syncStatus === 'error'
+                ? 'bg-rose-500/15 border border-rose-500/35 text-rose-300'
+                : 'bg-emerald-500/15 border border-emerald-500/35 text-emerald-300'
+            }`}
+          >
+            {/* Small pulsing dot (green for synced, amber for syncing, red for error) */}
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              {syncStatus === 'syncing' ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
+                </>
+              ) : syncStatus === 'error' ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                </>
+              ) : (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </>
+              )}
+            </span>
+
+            <span className="font-bold tracking-tight">
+              {syncStatus === 'syncing'
+                ? 'Syncing with Supabase...'
+                : syncStatus === 'error'
+                ? 'Supabase Sync Error'
+                : 'Supabase Synced'}
+            </span>
+
+            {lastSynced && syncStatus !== 'syncing' && (
+              <span className="hidden sm:inline-block text-[10px] opacity-75 font-mono border-l border-current/25 pl-2">
+                {lastSynced}
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={syncStatus === 'syncing'}
+              title="Verify or trigger sync with Supabase database"
+              aria-label="Refresh Supabase sync status"
+              className="ml-0.5 p-0.5 rounded hover:bg-white/10 opacity-80 hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-3 h-3 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
           <div className="max-w-2xl space-y-2">
             <div className="flex items-center gap-2.5">
@@ -367,9 +516,6 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
                 <BookOpen className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-amber-400">
-                  School of Ministry Theological Repository
-                </span>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
                   LIBRARY
                 </h1>

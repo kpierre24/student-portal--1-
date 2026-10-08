@@ -13,6 +13,10 @@ export interface LibraryPageProps {
   onOpenNotes?: () => void;
   onOpenInBible?: () => void;
   onOpenDiagnostics?: () => void;
+  isCloudSyncing?: boolean;
+  cloudSyncError?: string | null;
+  lastSyncedTime?: string | null;
+  onTriggerSync?: () => void;
 }
 
 export const LibraryPage: React.FC<LibraryPageProps> = (props) => {

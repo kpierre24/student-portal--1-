@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, GraduationCap, FileText, ChevronRight, AlertTriangle, UserX } from 'lucide-react';
+import { Award, GraduationCap, FileText, ChevronRight, AlertTriangle, UserX, Users } from 'lucide-react';
 import { Card, Badge } from '../../../components/ui';
 import { StudentSummary, ACADEMIC_LEVELS } from '../../../types';
 
@@ -61,12 +61,28 @@ export function StudentCard({
           )}
         </div>
 
-        {/* Level Tag & Dropout Notes */}
+        {/* Level Tag, Group Badge & Dropout Notes */}
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold border ${levelInfo.color}`}>
-            <GraduationCap className="h-3 w-3" />
-            {levelInfo.badge}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold border ${levelInfo.color}`}>
+              <GraduationCap className="h-3 w-3" />
+              {levelInfo.badge}
+            </span>
+
+            {/* Assessment Group Badge */}
+            {student.groupName ? (
+              <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60" title={`Assessment Group: ${student.groupName}`}>
+                <Users className="h-3 w-3 text-indigo-500" />
+                <span className="truncate max-w-[120px]">{student.groupName}</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <Users className="h-3 w-3 text-slate-400" />
+                <span>No Group</span>
+              </span>
+            )}
+          </div>
+
           {isDroppedOut && student.dropoutReason && (
             <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium truncate max-w-[150px]" title={student.dropoutReason}>
               Reason: {student.dropoutReason}

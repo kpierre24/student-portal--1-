@@ -237,6 +237,29 @@ export function AppRouter() {
                 if (st.photoUrl) {
                   state.handleUpdateStudentPhoto(st.name, st.photoUrl);
                 }
+                if (st.level) {
+                  state.setStudentLevels((prev: any) => ({
+                    ...prev,
+                    [st.name]: st.level,
+                    [(st.name || '').toLowerCase().trim()]: st.level,
+                  }));
+                }
+
+                // If this is a newly enrolled student, add baseline record so they appear in all portal rosters
+                const normName = (st.name || '').toLowerCase().trim();
+                const exists = state.records.some(r => (r.name || r.studentName || '').toLowerCase().trim() === normName);
+                if (!exists && state.classDays.length > 0) {
+                  state.setRecords((prev: any[]) => [
+                    ...prev,
+                    {
+                      id: `rec_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                      name: st.name,
+                      studentName: st.name,
+                      classDay: state.classDays[0].id || state.classDays[0].date,
+                      present: false,
+                    }
+                  ]);
+                }
               }
             });
           },
@@ -344,6 +367,10 @@ export function AppRouter() {
           courses: state.courses,
           customAssignments: state.customAssignments,
           onNavigateTab: (tab: string) => state.handleNavigate(tab as TabType),
+          isCloudSyncing: state.isCloudSyncing,
+          cloudSyncError: state.cloudSyncError,
+          lastSyncedTime: state.lastSyncedTime,
+          onTriggerSync: state.handlePushToCloud,
         };
 
       case 'notes':

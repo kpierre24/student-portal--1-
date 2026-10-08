@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { 
   TabType, 
@@ -539,6 +539,27 @@ export function usePortalState() {
     return saved ? JSON.parse(saved) : {};
   });
 
+  const [rubricScores, setRubricScores] = useState<Record<string, { participation: number; scripture: number; assignment: number }>>(() => {
+    const saved = localStorage.getItem('rubricScores');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [gradingWeights, setGradingWeights] = useState<GradingWeights>(() => {
+    try {
+      const saved = localStorage.getItem('hteim_grading_weights');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.assignments && parsed.assignments > 0) {
+          return DEFAULT_GRADING_WEIGHTS;
+        }
+        return parsed;
+      }
+      return DEFAULT_GRADING_WEIGHTS;
+    } catch {
+      return DEFAULT_GRADING_WEIGHTS;
+    }
+  });
+
   useEffect(() => {
     localStorage.setItem('hteim_student_enrollment_statuses', JSON.stringify(studentEnrollmentStatuses));
   }, [studentEnrollmentStatuses]);
@@ -697,80 +718,185 @@ export function usePortalState() {
     return [];
   });
 
+  // ─── Local Storage & Cloud Auto-Sync Engine ────────────────────────────────
   useEffect(() => {
     localStorage.setItem('hteim_custom_assignments', JSON.stringify(customAssignments));
-    const activeEmail = appUser?.email || user?.email;
-    const timer = setTimeout(() => {
-      saveToSupabase(activeEmail, {
-        records,
-        classDays,
-        customAssignments,
-        submissions,
-        payments,
-      } as any, 'Auto-persist custom assignments to database').catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
   }, [customAssignments]);
 
   useEffect(() => {
     localStorage.setItem('hteim_assignment_submissions', JSON.stringify(submissions));
-    const activeEmail = appUser?.email || user?.email;
-    const timer = setTimeout(() => {
-      saveToSupabase(activeEmail, {
-        records,
-        classDays,
-        customAssignments,
-        submissions,
-        payments,
-      } as any, 'Auto-persist submissions to database').catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
   }, [submissions]);
 
   useEffect(() => {
     localStorage.setItem('hteim_student_payments', JSON.stringify(payments));
-    const activeEmail = appUser?.email || user?.email;
-    const timer = setTimeout(() => {
-      saveToSupabase(activeEmail, {
-        records,
-        classDays,
-        customAssignments,
-        submissions,
-        payments,
-      } as any, 'Auto-persist payments to database').catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
   }, [payments]);
 
   useEffect(() => {
     localStorage.setItem('attendanceRecords', JSON.stringify(records));
-    const activeEmail = appUser?.email || user?.email;
-    const timer = setTimeout(() => {
-      saveToSupabase(activeEmail, {
-        records,
-        classDays,
-        customAssignments,
-        submissions,
-        payments,
-      } as any, 'Auto-persist attendance records to database').catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
   }, [records]);
 
   useEffect(() => {
     localStorage.setItem('classDays', JSON.stringify(classDays));
-    const activeEmail = appUser?.email || user?.email;
-    const timer = setTimeout(() => {
-      saveToSupabase(activeEmail, {
-        records,
-        classDays,
-        customAssignments,
-        submissions,
-        payments,
-      } as any, 'Auto-persist class days to database').catch(() => {});
-    }, 600);
-    return () => clearTimeout(timer);
   }, [classDays]);
+
+  useEffect(() => {
+    localStorage.setItem('studentNotes', JSON.stringify(studentNotes));
+  }, [studentNotes]);
+
+  useEffect(() => {
+    localStorage.setItem('excusedAbsences', JSON.stringify(excusedAbsences));
+  }, [excusedAbsences]);
+
+  useEffect(() => {
+    localStorage.setItem('hteim_student_photos', JSON.stringify(studentPhotos));
+  }, [studentPhotos]);
+
+  useEffect(() => {
+    localStorage.setItem('hteim_student_levels', JSON.stringify(studentLevels));
+  }, [studentLevels]);
+
+  useEffect(() => {
+    localStorage.setItem('deletedStudentNames', JSON.stringify(deletedStudentNames));
+  }, [deletedStudentNames]);
+
+  useEffect(() => {
+    localStorage.setItem('hteim_library_resources', JSON.stringify(libraryResources));
+  }, [libraryResources]);
+
+  useEffect(() => {
+    localStorage.setItem('hteim_classroom_media', JSON.stringify(classroomMedia));
+  }, [classroomMedia]);
+
+  useEffect(() => {
+    localStorage.setItem('rubricScores', JSON.stringify(rubricScores));
+  }, [rubricScores]);
+
+  useEffect(() => {
+    localStorage.setItem('hteim_grading_weights', JSON.stringify(gradingWeights));
+  }, [gradingWeights]);
+
+  // Track when initial hydration from cloud has completed to prevent premature overwrites
+  const isInitialLoadDoneRef = useRef<boolean>(false);
+
+  // Helper to construct full authoritative application state for Supabase persistence
+  const buildCurrentSyncedState = useCallback((): any => {
+    let facultyList: any[] = facultyTeachers;
+    if (!facultyList || facultyList.length === 0) {
+      try {
+        facultyList = JSON.parse(localStorage.getItem('hteim_faculty_teachers_v1') || '[]');
+      } catch {}
+    }
+
+    return {
+      records,
+      classDays,
+      studentNotes,
+      excusedAbsences,
+      rubricScores,
+      deletedStudentNames,
+      studentPhotos,
+      studentLevels,
+      studentEnrollmentStatuses,
+      studentDropoutNotes,
+      customAssignments,
+      submissions,
+      notifications,
+      sheetUrl,
+      courses,
+      schedules,
+      libraryResources,
+      classroomMedia,
+      facultyTeachers: facultyList,
+      payments,
+      messages: typeof messages !== 'undefined' ? messages : [],
+      zoomExceptionNote,
+      hasZoomException,
+      userCredentials,
+      gradingWeights: typeof gradingWeights !== 'undefined' ? gradingWeights : undefined,
+      dataSource: 'production',
+      version: 2,
+    };
+  }, [
+    records,
+    classDays,
+    studentNotes,
+    excusedAbsences,
+    rubricScores,
+    deletedStudentNames,
+    studentPhotos,
+    studentLevels,
+    studentEnrollmentStatuses,
+    studentDropoutNotes,
+    customAssignments,
+    submissions,
+    notifications,
+    sheetUrl,
+    courses,
+    schedules,
+    libraryResources,
+    classroomMedia,
+    facultyTeachers,
+    payments,
+    zoomExceptionNote,
+    hasZoomException,
+    userCredentials,
+  ]);
+
+  // Master debounced cloud auto-persister: any adjustment (quizzes, students, media, etc.) syncs to Supabase
+  useEffect(() => {
+    if (!isInitialLoadDoneRef.current) return;
+
+    const activeEmail = appUser?.email || user?.email;
+    const timer = setTimeout(async () => {
+      try {
+        const fullState = buildCurrentSyncedState();
+        const success = await saveToSupabase(activeEmail, fullState, 'Auto-sync portal changes to Supabase');
+        if (success) {
+          const timeStr = new Date().toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+          setLastSyncedTime(timeStr);
+          setCloudSyncError(null);
+        }
+      } catch (err: any) {
+        console.warn('Auto-sync to Supabase notice:', err);
+      }
+    }, 750);
+
+    return () => clearTimeout(timer);
+  }, [buildCurrentSyncedState, appUser, user]);
+
+  // Listen for quiz additions or removals created anywhere in the app
+  useEffect(() => {
+    const handleQuizSaved = (e: any) => {
+      if (e.detail && e.detail.id) {
+        setCustomAssignments(prev => {
+          const idx = prev.findIndex(a => a.id === e.detail.id || a.quizData?.id === e.detail.id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = e.detail;
+            return next;
+          }
+          return [e.detail, ...prev];
+        });
+      }
+    };
+
+    const handleQuizDeleted = (e: any) => {
+      if (e.detail?.quizId) {
+        setCustomAssignments(prev => prev.filter(a => a.id !== e.detail.quizId && a.quizData?.id !== e.detail.quizId));
+      }
+    };
+
+    window.addEventListener('hteim_quiz_saved', handleQuizSaved);
+    window.addEventListener('hteim_quiz_deleted', handleQuizDeleted);
+    return () => {
+      window.removeEventListener('hteim_quiz_saved', handleQuizSaved);
+      window.removeEventListener('hteim_quiz_deleted', handleQuizDeleted);
+    };
+  }, []);
 
   // Messages State
   const [messages, setMessages] = useState<AppMessage[]>(() => {
@@ -1063,35 +1189,6 @@ export function usePortalState() {
   const [showLiveCheckinModal, setShowLiveCheckinModal] = useState<boolean>(false);
   const [liveCheckinDayId, setLiveCheckinDayId] = useState<string>('');
 
-  const [rubricScores, setRubricScores] = useState<Record<string, { participation: number; scripture: number; assignment: number }>>(() => {
-    const saved = localStorage.getItem('rubricScores');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  useEffect(() => {
-    localStorage.setItem('rubricScores', JSON.stringify(rubricScores));
-  }, [rubricScores]);
-
-  const [gradingWeights, setGradingWeights] = useState<GradingWeights>(() => {
-    try {
-      const saved = localStorage.getItem('hteim_grading_weights');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.assignments && parsed.assignments > 0) {
-          return DEFAULT_GRADING_WEIGHTS;
-        }
-        return parsed;
-      }
-      return DEFAULT_GRADING_WEIGHTS;
-    } catch {
-      return DEFAULT_GRADING_WEIGHTS;
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('hteim_grading_weights', JSON.stringify(gradingWeights));
-  }, [gradingWeights]);
-
   useEffect(() => {
     localStorage.setItem('densityMode', densityMode);
   }, [densityMode]);
@@ -1283,7 +1380,10 @@ export function usePortalState() {
           setCloudSyncError("Could not retrieve cloud sync data.");
         }
       } finally {
-        if (active) setIsCloudSyncing(false);
+        if (active) {
+          setIsCloudSyncing(false);
+          isInitialLoadDoneRef.current = true;
+        }
       }
     };
 

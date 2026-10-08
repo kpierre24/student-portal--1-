@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, GraduationCap, Award, Calendar, FileText, Trash2, Edit3, UserX, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, GraduationCap, Award, Calendar, FileText, Trash2, Edit3, UserX, AlertCircle, Users } from 'lucide-react';
 import { Modal, Button, Badge, Card } from '../../../components/ui';
 import { StudentSummary, ACADEMIC_LEVELS, ClassDay } from '../../../types';
 import { useStudent } from '../hooks/useStudent';

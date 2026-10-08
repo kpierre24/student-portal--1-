@@ -93,6 +93,10 @@ interface LibraryTabProps {
   courses?: Course[];
   customAssignments?: CustomAssignment[];
   onNavigateTab?: (tab: string) => void;
+  isCloudSyncing?: boolean;
+  cloudSyncError?: string | null;
+  lastSyncedTime?: string | null;
+  onTriggerSync?: () => void;
 }
 
 // Helper to check if text contains raw binary zip code / PK header from DOCX
@@ -295,6 +299,10 @@ export const LibraryTab: React.FC<LibraryTabProps> = ({
   courses = [],
   customAssignments = [],
   onNavigateTab,
+  isCloudSyncing,
+  cloudSyncError,
+  lastSyncedTime,
+  onTriggerSync,
 }) => {
   const isStudent = userRole === 'student';
 
@@ -1480,6 +1488,10 @@ ${resource.fullContent || 'Full lesson document content loaded for student refer
             handleDownload(legacy, e);
           }}
           userRole={userRole}
+          isSyncing={isCloudSyncing}
+          syncError={cloudSyncError}
+          lastSyncedAt={lastSyncedTime}
+          onTriggerSync={onTriggerSync}
         />
       ) : libraryViewMode === 'my_library' ? (
         <MyLibraryView

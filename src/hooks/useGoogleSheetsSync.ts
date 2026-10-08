@@ -99,9 +99,10 @@ export const useGoogleSheetsSync = ({
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
 
   // Data Source Tracking
-  const [dataSource, setDataSource] = useState<'demo' | 'sheets' | null>(() => {
+  const [dataSource, setDataSource] = useState<'demo' | 'sheets' | 'production' | null>(() => {
     const saved = localStorage.getItem('dataSource');
-    return (saved as 'demo' | 'sheets' | null) || 'demo';
+    if (saved === 'sheets') return 'sheets';
+    return (saved as any) || 'production';
   });
 
   const [sheetMergePolicy, setSheetMergePolicy] = useState<'sheets' | 'manual' | 'prompt'>(() => {

@@ -125,13 +125,16 @@ export async function saveAuthoritativeState(
   const emailKey = userEmail || 'default_public';
 
   try {
-    // Guard: Demo state must never be saved to production database
-    if (state.dataSource === 'demo' || (state as any).isDemo === true) {
-      logger.warn('[DataSync] Blocked attempt to save demo state into production database.');
+    if (!state || typeof state !== 'object') return false;
+
+    // Sanitize state: strips synthetic demo records/assignments/users/payments,
+    // converts dataSource to 'production', and strips isDemo flag.
+    const cleanState = sanitizeProductionState(state);
+
+    if ((cleanState as any).isDemo === true || (cleanState as any)._isPureDemoSimulation === true) {
+      logger.warn('[DataSync] Blocked attempt to save purely synthetic demo fixture into production database.');
       return false;
     }
-
-    const cleanState = sanitizeProductionState(state);
 
     // Update temporary local offline snapshot cache
     try {

@@ -289,4 +289,79 @@ describe('Library Homepage & Search (Phases 13 & 14)', () => {
       resolveDownload();
     });
   });
+
+  describe('Real-time Supabase Database Sync Status Indicator', () => {
+    it('renders "Supabase Synced" indicator with green pulsing dot when client state is synchronized', () => {
+      const { container } = render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          isSyncing={false}
+          syncError={null}
+          lastSyncedAt="10:30:00 AM"
+        />
+      );
+
+      const indicator = container.querySelector('[data-testid="supabase-sync-indicator"]');
+      expect(indicator).toBeTruthy();
+      expect(screen.getByText(/Supabase Synced/i)).toBeTruthy();
+      expect(screen.getByText(/10:30:00 AM/i)).toBeTruthy();
+      // Verify green dot styling
+      const greenDot = indicator?.querySelector('.bg-emerald-500');
+      expect(greenDot).toBeTruthy();
+    });
+
+    it('renders "Syncing with Supabase..." with amber pulsing dot when client is syncing', () => {
+      const { container } = render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          isSyncing={true}
+          syncError={null}
+        />
+      );
+
+      const indicator = container.querySelector('[data-testid="supabase-sync-indicator"]');
+      expect(indicator).toBeTruthy();
+      expect(screen.getByText(/Syncing with Supabase\.\.\./i)).toBeTruthy();
+      // Verify amber dot styling
+      const amberDot = indicator?.querySelector('.bg-amber-400');
+      expect(amberDot).toBeTruthy();
+    });
+
+    it('renders "Supabase Sync Error" with red pulsing dot when sync fails', () => {
+      const { container } = render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          isSyncing={false}
+          syncError="Could not connect to database"
+        />
+      );
+
+      const indicator = container.querySelector('[data-testid="supabase-sync-indicator"]');
+      expect(indicator).toBeTruthy();
+      expect(screen.getByText(/Supabase Sync Error/i)).toBeTruthy();
+      // Verify red dot styling
+      const redDot = indicator?.querySelector('.bg-rose-500');
+      expect(redDot).toBeTruthy();
+    });
+
+    it('invokes onTriggerSync when the sync refresh button is clicked', () => {
+      const handleTriggerSync = vi.fn();
+      render(
+        <LibraryHomepage
+          resources={sampleResources}
+          onSelectResource={vi.fn()}
+          isSyncing={false}
+          onTriggerSync={handleTriggerSync}
+        />
+      );
+
+      const refreshBtn = screen.getByLabelText(/Refresh Supabase sync status/i);
+      expect(refreshBtn).toBeTruthy();
+      fireEvent.click(refreshBtn);
+      expect(handleTriggerSync).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { getServerSupabase, logAuditEvent } from '../supabaseServer';
 import { logger } from '../../../lib/logger';
 import { AuthenticatedUser } from '../../../types/rbac';
@@ -88,6 +90,23 @@ export const assignmentsService = {
           }
         } catch {
           // Non-blocking app_states fallback
+        }
+
+        // Also check disk authoritative state backup if relational and supabase return empty
+        if (rawList.length === 0) {
+          try {
+            const diskPath = path.join(process.cwd(), 'data', 'authoritative_state.json');
+            const distDiskPath = path.join(process.cwd(), 'dist', 'data', 'authoritative_state.json');
+            const targetPath = fs.existsSync(diskPath) ? diskPath : (fs.existsSync(distDiskPath) ? distDiskPath : null);
+            if (targetPath) {
+              const parsed = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
+              if (parsed?.customAssignments && Array.isArray(parsed.customAssignments) && parsed.customAssignments.length > 0) {
+                rawList = parsed.customAssignments;
+              }
+            }
+          } catch {
+            // Non-blocking disk fallback
+          }
         }
       }
 

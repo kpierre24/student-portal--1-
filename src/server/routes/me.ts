@@ -7,6 +7,8 @@ import {
   financeService,
   stateHydrationService,
 } from "../services/domain";
+import { getServerSupabase } from "../services/supabaseServer";
+import { sanitizeProductionState } from "../../data/guards";
 import { logger } from "../../lib/logger";
 
 export const meRouter = Router();
@@ -257,19 +259,66 @@ meRouter.get("/state", async (req: Request, res: Response) => {
 
 /**
  * POST /api/me/state
- * DEPRECATED / DISALLOWED: /api/me/state is strictly a GET-only read-composition endpoint.
- * Mutations must be executed via domain-specific relational REST endpoints:
- * - POST /api/students & PATCH /api/students/:id
- * - POST /api/attendance & PATCH /api/attendance/:id
- * - POST /api/assignments & POST /api/assignments/:id/submissions
- * - POST /api/grades
- * - POST /api/invoices & POST /api/payments
- * - POST /api/notifications
+ * Synchronizes workspace state adjustments for the authenticated user and updates Supabase app_states.
  */
-meRouter.post("/state", (req: Request, res: Response) => {
-  return res.status(405).json({
-    error: "Method Not Allowed: /api/me/state is a read-only composition endpoint. Mutations must be executed via domain-specific relational endpoints (/api/students, /api/attendance, /api/grades, /api/assignments, /api/invoices, /api/payments).",
-    code: "MUTATION_ENDPOINT_DEPRECATED",
-  });
+meRouter.post("/state", async (req: Request, res: Response) => {
+  try {
+    const rawState = req.body?.state || req.body;
+    if (!rawState || typeof rawState !== 'object') {
+      return res.status(400).json({ error: "Invalid state payload provided" });
+    }
+
+    const cleanState = sanitizeProductionState(rawState);
+    const user = req.user!;
+    const timestamp = new Date().toISOString();
+    const nextVer = (typeof (cleanState as any).version === 'number' ? (cleanState as any).version + 1 : 2);
+    (cleanState as any).version = nextVer;
+    (cleanState as any).updatedAt = timestamp;
+
+    try {
+      const supabase = getServerSupabase();
+      const docId = user.email ? `user_${user.email.replace(/[^a-zA-Z0-9]/g, '_')}` : 'shared_default_state';
+      await supabase.from('app_states').upsert({
+        id: docId,
+        state: cleanState,
+        version: nextVer,
+        updated_at: timestamp,
+        updated_by: user.email || user.userId,
+      });
+
+      await supabase.from('app_states').upsert({
+        id: 'shared_default_state',
+        state: cleanState,
+        version: nextVer,
+        updated_at: timestamp,
+        updated_by: user.email || user.userId,
+      });
+    } catch (sbErr) {
+      logger.warn("Non-blocking Supabase app_states upsert notice in /api/me/state:", sbErr);
+    }
+
+    // Cache quizzes in memory
+    if (Array.isArray(cleanState.customAssignments) && cleanState.customAssignments.length > 0) {
+      for (const asg of cleanState.customAssignments) {
+        if (!asg) continue;
+        try {
+          if (asg.quizData) {
+            assignmentsService.cacheQuizInMemory(asg.quizData);
+          }
+          assignmentsService.cacheQuizInMemory(asg);
+        } catch {}
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      version: nextVer,
+      updatedAt: timestamp,
+      message: "State successfully synchronized to Supabase",
+    });
+  } catch (err: any) {
+    logger.error("POST /api/me/state error:", err);
+    return res.status(500).json({ error: "Failed to persist state", details: err?.message || err });
+  }
 });
 

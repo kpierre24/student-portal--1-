@@ -568,3 +568,61 @@ function finalizeFallbackQuestion(q: any, defaultWeight: number) {
     feedbackIncorrect: 'Please review the lesson scripture references.'
   };
 }
+
+/**
+ * POST /api/ai/summarize-resource
+ * Generates an inspiring, highly theological 2-3 sentence summary of a learning resource.
+ */
+aiRouter.post("/summarize-resource", async (req, res) => {
+  try {
+    const { resourceId, title, category, description, author, fullContent } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: "Resource title is required" });
+    }
+
+    const ai = getGenAI();
+
+    if (ai) {
+      const prompt = `
+You are an expert academic and theological summary generator for the HTEIM School of Ministry.
+Generate a concise, insightful, and inspiring 2-3 sentence AI Summary of the following learning resource.
+The summary should highlight its theological value, key biblical themes, and practical application for students or ministerial candidates.
+
+Resource Title: "${title}"
+Category: "${category || "General theological reading"}"
+Uploaded By / Author: "${author || "HTEIM Faculty"}"
+Original Description / Overview: "${description || "N/A"}"
+Excerpt / Content (if available):
+"""
+${(fullContent || "").slice(0, 4000)}
+"""
+
+Provide a concise, direct paragraph. Do not start with "Sure, here is the summary" or other conversational fluff. Speak directly to the student/pastor candidate.
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+      });
+
+      const textResponse = response.text;
+      if (textResponse && textResponse.trim().length > 0) {
+        return res.json({
+          success: true,
+          summary: textResponse.trim(),
+        });
+      }
+    }
+
+    // Heuristic fallback if API key is not configured or fails
+    const fallbackSummary = `An essential theological resource on "${title}" curated by HTEIM Faculty, designed to build spiritual depth, biblical interpretation skills, and active leadership competence for your practical ministry and study.`;
+    return res.json({
+      success: true,
+      summary: fallbackSummary,
+    });
+  } catch (err: any) {
+    logger.error("Error generating resource summary:", err);
+    return res.status(500).json({ error: "Failed to generate resource summary" });
+  }
+});

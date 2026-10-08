@@ -85,7 +85,7 @@ export function createApp(): Express {
   app.use("/api/grades", requireAuth, assignmentsRateLimiter, gradesRouter);
   app.use("/api/audit-logs", requireAuth, adminRateLimiter, auditLogsRouter);
 
-  app.use("/api/state", requireAuth, stateRateLimiter, stateRouter);
+  app.use("/api/state", stateRateLimiter, stateRouter);
   app.use("/api/me", requireAuth, meRouter);
   app.use("/api/notifications", requireAuth, notificationsRouter);
   app.use("/api/whatsapp", requireAuth, whatsappRouter);

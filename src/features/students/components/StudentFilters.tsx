@@ -1,7 +1,8 @@
-import React from 'react';
-import { Filter, Sliders, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Filter, Sliders, RotateCcw, Users } from 'lucide-react';
 import { StudentFilterOptions } from '../types';
 import { ACADEMIC_LEVELS } from '../../../types';
+import { loadPermanentAssessmentGroups, AssessmentGroup } from '../../../services/assessmentGroupsService';
 
 export interface StudentFiltersProps {
   filters: StudentFilterOptions;
@@ -16,8 +17,42 @@ export function StudentFilters({
   onResetFilters,
   className = '',
 }: StudentFiltersProps) {
+  const [availableGroups, setAvailableGroups] = useState<AssessmentGroup[]>([]);
+
+  useEffect(() => {
+    setAvailableGroups(loadPermanentAssessmentGroups());
+
+    const handleGroupsUpdated = (e: any) => {
+      if (e.detail?.groups) {
+        setAvailableGroups(e.detail.groups);
+      } else {
+        setAvailableGroups(loadPermanentAssessmentGroups());
+      }
+    };
+
+    window.addEventListener('hteim_groups_updated', handleGroupsUpdated);
+    return () => {
+      window.removeEventListener('hteim_groups_updated', handleGroupsUpdated);
+    };
+  }, []);
+
   return (
     <div className={`flex flex-wrap items-center gap-2.5 ${className}`}>
+      {/* Assessment Group Filter */}
+      <select
+        value={filters.groupFilter || 'all'}
+        onChange={(e) => onFilterChange({ groupFilter: e.target.value })}
+        className="rounded-xl border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] px-3 py-2 text-xs font-semibold text-[var(--md-on-surface)] transition focus:border-[var(--md-primary)] focus:outline-none"
+      >
+        <option value="all">👥 All Assessment Groups</option>
+        <option value="unassigned">Unassigned (No Group)</option>
+        {availableGroups.map((grp) => (
+          <option key={grp.id} value={grp.groupName}>
+            👥 {grp.groupName}
+          </option>
+        ))}
+      </select>
+
       {/* Enrollment Status Filter */}
       <select
         value={filters.enrollmentFilter || 'all'}

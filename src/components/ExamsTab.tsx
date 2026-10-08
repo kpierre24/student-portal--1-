@@ -68,6 +68,7 @@ import { Modal } from './Modal';
 import { usePortalRouter } from '../lib/usePortalRouter';
 import { isDemoAssignment } from '../data/guards';
 import { generateUUID } from '../lib/idGenerator';
+import { calculateWeightedComposite } from '../data/gradingWeights';
 import { 
   CURRICULUM_CLASS_DAYS, 
   CHRONOLOGICAL_CURRICULUM_LESSONS, 
@@ -1704,7 +1705,12 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
       const studentKey = (s?.name || '').toLowerCase().trim();
       const rub = rubricScores[studentKey] || { participation: 90, scripture: 95, assignment: 85 };
       const qPct = s.percentage !== null && s.percentage !== undefined ? Math.round(s.percentage) : (s.avgScore !== null && s.avgScore !== undefined ? Math.round(s.avgScore) : 0);
-      const composite = Math.round((qPct + rub.assignment) / 2);
+      const attendancePct = s.attendanceRate ?? (s.percentage ?? 90);
+      const composite = calculateWeightedComposite({
+        quizPct: qPct,
+        attendancePct,
+        scripturePct: rub.scripture ?? 95,
+      });
       
       csv += `"${s.name}",`;
       sanitizedQuizSheets.forEach(qs => {
@@ -3154,7 +3160,12 @@ export const ExamsTab: React.FC<ExamsTabProps> = ({
                     const studentKey = (s?.name || '').toLowerCase().trim();
                     const rub = rubricScores[studentKey] || { participation: 90, scripture: 95, assignment: 85 };
                     const qPct = s.percentage !== null && s.percentage !== undefined ? Math.round(s.percentage) : (s.avgScore !== null && s.avgScore !== undefined ? Math.round(s.avgScore) : 0);
-                    const composite = Math.round((qPct + rub.assignment) / 2);
+                    const attendancePct = s.attendanceRate ?? (s.percentage ?? 90);
+                    const composite = calculateWeightedComposite({
+                      quizPct: qPct,
+                      attendancePct,
+                      scripturePct: rub.scripture ?? 95,
+                    });
                     const gradeLetter = getGradeLetter(s.percentage ?? s.avgScore ?? null);
 
                     return (

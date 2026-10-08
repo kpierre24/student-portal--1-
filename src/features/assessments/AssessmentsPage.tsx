@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Eye, Trash2 } from 'lucide-react';
+import { Eye, Trash2, Users } from 'lucide-react';
 import { StudentAssessmentWorkspace } from './student/StudentAssessmentWorkspace';
 import { TeacherAssessmentWorkspace } from './teacher/TeacherAssessmentWorkspace';
 import { AdminAssessmentWorkspace } from './admin/AdminAssessmentWorkspace';
 import { AssignmentForm } from '../assignments/components/AssignmentForm';
 import { QuizCreatorModal } from '../../components/QuizCreatorModal';
 import { QuizTakerView } from '../../components/QuizTakerView';
+import { AssessmentGroupsModal } from '../../components/AssessmentGroupsModal';
 import { AppUser } from '../../lib/userAuth';
 import { CustomAssignment, AssignmentSubmission, StudentSummary } from '../../types';
 
@@ -58,6 +59,7 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
   // Modal states for creating/taking/deleting assessments
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [showGroupsModal, setShowGroupsModal] = useState(false);
   const [activeQuizForTaker, setActiveQuizForTaker] = useState<CustomAssignment | null>(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(null);
 
@@ -145,26 +147,39 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
           </p>
         </div>
 
-        {/* Quiet Perspective Preview Switcher for Administrators */}
-        {isAdmin && (
-          <div className="flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
-            <Eye className="h-3 w-3 text-slate-400 ml-1.5" />
-            <span className="text-[11px] font-bold text-slate-500">View as:</span>
-            {(['auto', 'student', 'teacher', 'admin'] as const).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRoleOverride(r)}
-                className={`px-2 py-0.5 text-[11px] font-bold capitalize rounded-lg transition-all cursor-pointer ${
-                  roleOverride === r
-                    ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-700 dark:text-white'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Quiet Perspective Preview Switcher & Group Management for Administrators/Teachers */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {(isAdmin || resolvedRole === 'teacher') && (
+            <button
+              type="button"
+              onClick={() => setShowGroupsModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition-colors cursor-pointer"
+            >
+              <Users className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Manage Assessment Groups</span>
+            </button>
+          )}
+
+          {isAdmin && (
+            <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
+              <Eye className="h-3 w-3 text-slate-400 ml-1.5" />
+              <span className="text-[11px] font-bold text-slate-500">View as:</span>
+              {(['auto', 'student', 'teacher', 'admin'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRoleOverride(r)}
+                  className={`px-2 py-0.5 text-[11px] font-bold capitalize rounded-lg transition-all cursor-pointer ${
+                    roleOverride === r
+                      ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-700 dark:text-white'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Role Workspace View */}
@@ -311,6 +326,14 @@ export const AssessmentsPage: React.FC<AssessmentsPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Assessment Groups Management Modal */}
+      <AssessmentGroupsModal
+        isOpen={showGroupsModal}
+        onClose={() => setShowGroupsModal(false)}
+        students={students}
+        appRole={resolvedRole}
+      />
     </div>
   );
 };

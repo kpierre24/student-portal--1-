@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, UserPlus, Grid, List, AlertTriangle, Trophy, Award, GraduationCap, UserX, UserCheck } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, UserPlus, Grid, List, AlertTriangle, Trophy, Award, GraduationCap, UserX, UserCheck, Layers } from 'lucide-react';
 import { Card, Button, Badge } from '../../../components/ui';
 import { StudentSearch } from './StudentSearch';
 import { StudentFilters } from './StudentFilters';
@@ -11,6 +11,8 @@ import { useStudents } from '../hooks/useStudents';
 import { useStudentMutations } from '../hooks/useStudentMutations';
 import { StudentSummary, ClassDay } from '../../../types';
 import { StudentFormData } from '../types';
+import { AssessmentGroupsModal } from '../../../components/AssessmentGroupsModal';
+import { loadPermanentAssessmentGroups, findStudentAssessmentGroup } from '../../../services/assessmentGroupsService';
 
 export interface StudentsPageProps {
   initialStudents?: StudentSummary[];
@@ -40,6 +42,7 @@ export function StudentsPage({
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isGroupsModalOpen, setIsGroupsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<StudentSummary | null>(null);
 
   const {
@@ -93,10 +96,16 @@ export function StudentsPage({
           </p>
         </div>
 
-        <Button variant="primary" onClick={handleOpenCreateForm}>
-          <UserPlus className="h-4 w-4 mr-1.5" />
-          Enroll Student
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setIsGroupsModalOpen(true)}>
+            <Users className="h-4 w-4 mr-1.5 text-indigo-600 dark:text-indigo-400" />
+            Manage Assessment Groups
+          </Button>
+          <Button variant="primary" onClick={handleOpenCreateForm}>
+            <UserPlus className="h-4 w-4 mr-1.5" />
+            Enroll Student
+          </Button>
+        </div>
       </div>
 
       {/* KPI Stats Bar */}
@@ -249,6 +258,17 @@ export function StudentsPage({
             onDeleteStudent(id);
           } else {
             deleteStudent(id);
+          }
+        }}
+      />
+
+      <AssessmentGroupsModal
+        isOpen={isGroupsModalOpen}
+        onClose={() => setIsGroupsModalOpen(false)}
+        students={students}
+        onStudentsUpdated={(updated) => {
+          if (onStudentsChange) {
+            onStudentsChange(updated);
           }
         }}
       />

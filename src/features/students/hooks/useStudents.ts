@@ -34,6 +34,7 @@ export function useStudents({
     gradeFilter: 'all',
     enrollmentFilter: 'all',
     cohortId: 'all',
+    groupFilter: 'all',
     sortBy: 'name',
     sortDirection: 'asc',
   });
@@ -87,6 +88,7 @@ export function useStudents({
       gradeFilter: 'all',
       enrollmentFilter: 'all',
       cohortId: 'all',
+      groupFilter: 'all',
       sortBy: 'name',
       sortDirection: 'asc',
     });
