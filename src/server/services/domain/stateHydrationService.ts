@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { studentsService } from './studentsService';
 import { attendanceService } from './attendanceService';
 import { academicsService } from './academicsService';
@@ -32,7 +30,6 @@ export const stateHydrationService = {
 
       logger.info('Relational tables are unseeded. Performing deterministic migration bootstrap into PostgreSQL tables...');
 
-      // 1. Seed Academic Years & Terms
       const { data: year } = await supabase
         .from('academic_years')
         .upsert({
@@ -68,7 +65,6 @@ export const stateHydrationService = {
         ], { onConflict: 'code' });
       }
 
-      // 2. Seed Master Courses & Offerings
       const defaultCourses = [
         { code: 'MIN-101', title: 'Biblical Foundations & Covenant Life', core_module_number: 1, credits: 5.0, department: 'Biblical Studies' },
         { code: 'MIN-102', title: 'Spiritual Authority & Prayer Warfare', core_module_number: 2, credits: 5.0, department: 'Ministry Practice' },
@@ -82,7 +78,6 @@ export const stateHydrationService = {
         await supabase.from('course_definitions').upsert(c, { onConflict: 'code' });
       }
 
-      // 3. Seed Students & Profiles deterministically
       const studentNames = MASTER_ENROLLED_STUDENTS;
 
       for (let i = 0; i < studentNames.length; i++) {
@@ -126,11 +121,9 @@ export const stateHydrationService = {
    * Composes authorized portal state directly from relational services for the logged-in user.
    */
   async getComposedStateForUser(user: AuthenticatedUser): Promise<any> {
-    // Ensure relational database is populated
     await this.ensureRelationalDataSeeded();
 
     try {
-      // 1. Fetch domain data in parallel directly from relational domain services
       const [
         studentsRes,
         attendanceRes,
@@ -151,7 +144,6 @@ export const stateHydrationService = {
         financeService.getTransactions({}, user),
       ]);
 
-      // Safely extract domain data with fallbacks
       const studentsList = studentsRes?.students || [];
       const recordsList = attendanceRes?.records || [];
       const classDaysList = (attendanceRes?.classDays && attendanceRes.classDays.length > 0)
@@ -170,7 +162,6 @@ export const stateHydrationService = {
       const invoicesList = invoicesRes?.invoices || [];
       const transactionsList = transactionsRes?.transactions || [];
 
-      // Build dictionary structures expected by frontend views for backward compatibility
       const studentLevels: Record<string, string> = {};
       const studentPhotos: Record<string, string> = {};
       const studentNotes: Record<string, string> = {};
@@ -183,54 +174,11 @@ export const stateHydrationService = {
         }
       });
 
-      // Hydrate library resources and classroom media from app_states snapshot
-      let libraryResourcesList: any[] = [];
-      let classroomMediaList: any[] = [];
-      try {
-        const supabase = getServerSupabase();
-        const { data: stateDoc } = await supabase
-          .from('app_states')
-          .select('state')
-          .eq('id', 'shared_default_state')
-          .maybeSingle();
-        if (stateDoc?.state?.libraryResources && Array.isArray(stateDoc.state.libraryResources)) {
-          libraryResourcesList = stateDoc.state.libraryResources;
-        }
-        if (stateDoc?.state?.classroomMedia && Array.isArray(stateDoc.state.classroomMedia)) {
-          classroomMediaList = stateDoc.state.classroomMedia;
-        }
-      } catch (err) {
-        // Non-blocking app_states pull
-      }
-
-      // Check disk authoritative state backup if library or media are empty
-      if (libraryResourcesList.length === 0 || classroomMediaList.length === 0) {
-        try {
-          const diskPath = path.join(process.cwd(), 'data', 'authoritative_state.json');
-          const distDiskPath = path.join(process.cwd(), 'dist', 'data', 'authoritative_state.json');
-          const targetPath = fs.existsSync(diskPath) ? diskPath : (fs.existsSync(distDiskPath) ? distDiskPath : null);
-          if (targetPath) {
-            const parsed = JSON.parse(fs.readFileSync(targetPath, 'utf-8'));
-            if (libraryResourcesList.length === 0 && Array.isArray(parsed?.libraryResources)) {
-              libraryResourcesList = parsed.libraryResources;
-            }
-            if (classroomMediaList.length === 0 && Array.isArray(parsed?.classroomMedia)) {
-              classroomMediaList = parsed.classroomMedia;
-            }
-          }
-        } catch {
-          // Non-blocking disk fallback
-        }
-      }
-
-      // Assemble unified authoritative state composed dynamically from relational tables
-      const composedState = {
-        // Metadata & version
+      return {
         version: 2,
         isRelationalAuthoritative: true,
         updatedAt: new Date().toISOString(),
 
-        // Academic Structure
         academicYears,
         terms,
         activeTermId,
@@ -238,7 +186,6 @@ export const stateHydrationService = {
         courses,
         courseOfferings,
 
-        // Student & Attendance Domain
         students: studentsList,
         studentLevels,
         studentPhotos,
@@ -247,21 +194,18 @@ export const stateHydrationService = {
         classDays: classDaysList,
         excusedAbsences,
 
-        // Academic Assignments & Grades
         customAssignments,
         submissions,
         rubricScores,
 
-        // Financial Domain
         invoices: invoicesList,
         transactions: transactionsList,
         payments: transactionsList,
         receipts: [],
         adjustments: [],
 
-        // Library & Media Domain
-        libraryResources: libraryResourcesList,
-        classroomMedia: classroomMediaList,
+        libraryResources: [],
+        classroomMedia: [],
         sheetsUrl: '',
         portalConfig: {
           policyThreshold: '75%',
@@ -269,8 +213,6 @@ export const stateHydrationService = {
           criticalThreshold: '50%',
         },
       };
-
-      return composedState;
     } catch (err) {
       logger.error('Error composing state from relational tables:', err);
       return {
