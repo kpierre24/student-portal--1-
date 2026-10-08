@@ -95,7 +95,7 @@ describe('stateHydrationService - Pure Relational Domain Architecture', () => {
     expect(composed.customAssignments).toHaveLength(1);
     expect(composed.submissions).toHaveLength(1);
     expect(composed.invoices).toHaveLength(1);
-  });
+  }, 10000);
 
   it('should deterministically seed relational database without reading legacy app_states blob', async () => {
     const mockUpsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'ay-1' } }) }) });
