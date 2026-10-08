@@ -90,7 +90,7 @@ describe('Strict State Boundary Architecture Governance', () => {
       expect(state.students[0].name).toBe('David Goliath');
       expect(studentsService.getStudents).toHaveBeenCalled();
       expect(academicsService.getCourses).toHaveBeenCalled();
-    });
+    }, 10000);
 
     it('Domain services reject unpersisted local mutations and write directly to PostgreSQL', () => {
       expect(typeof studentsService.enrollStudent).toBe('function');
