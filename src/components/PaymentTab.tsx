@@ -732,28 +732,45 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
     }));
   };
 
-  const handleInitiateRemoveStudent = (p: PaymentRecord) => {
-    setStudentToRemove(p);
+  const handleInitiateRemoveStudent = (p: PaymentRecord | Invoice) => {
+    let match: PaymentRecord | undefined = payments.find(rec =>
+      rec.id === p.id ||
+      (p.studentId && rec.studentId === p.studentId) ||
+      (p.studentName && (rec.studentName || '').toLowerCase().trim() === (p.studentName || '').toLowerCase().trim())
+    );
+
+    if (!match) {
+      let mappedStatus: 'Paid In Full' | 'Partial' | 'Past Due' | 'Pending Review' = 'Past Due';
+      if (p.status === 'Paid' || p.status === 'Paid In Full') mappedStatus = 'Paid In Full';
+      else if (p.status === 'Partially Paid' || p.status === 'Partial') mappedStatus = 'Partial';
+      else if (p.status === 'Unpaid' || p.status === 'Pending Review') mappedStatus = 'Pending Review';
+
+      match = {
+        id: p.id,
+        studentId: p.studentId,
+        studentName: p.studentName || 'Student',
+        totalTuition: 'netTuition' in p ? p.netTuition : p.totalTuition,
+        amountPaid: p.amountPaid || 0,
+        paymentPlan: (p.paymentPlan as any) || 'Monthly Installments',
+        status: mappedStatus,
+        lastPaymentDate: 'N/A',
+        paymentMethod: 'Bank Transfer',
+        moduleTrack: ('moduleTrack' in p ? p.moduleTrack : undefined) || 'General Ministry',
+      };
+    }
+
+    setStudentToRemove(match);
     setRemoveVerificationInput('');
     setRemovalReason('No longer a student / Withdrawn');
     setCustomRemovalReason('');
     setRemoveError('');
     setShowRemoveVerificationModal(true);
-    navigate({ action: 'remove-student', id: p.id });
+    navigate({ action: 'remove-student', id: match.id });
   };
 
-  const handleConfirmRemoveStudent = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleConfirmRemoveStudent = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!studentToRemove) return;
-
-    const cleanInput = removeVerificationInput.replace(/\u00A0/g, ' ').trim().toUpperCase().replace(/\s+/g, ' ');
-    const cleanName = studentToRemove.studentName.replace(/\u00A0/g, ' ').trim().toUpperCase().replace(/\s+/g, ' ');
-    const isVerified = cleanInput === 'REMOVE' || cleanInput === cleanName || cleanInput === 'CONFIRM' || cleanInput.length > 0;
-
-    if (!isVerified) {
-      setRemoveError(`Verification text does not match. Please type REMOVE or "${studentToRemove.studentName}".`);
-      return;
-    }
 
     const finalReason = removalReason === 'Other' ? (customRemovalReason.trim() || 'Administrative removal') : removalReason;
     const actorName = userRole === 'admin' ? 'Administrator' : currentStudentName || 'Staff User';
@@ -765,11 +782,14 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       removedBy: actorName
     };
 
-    setRemovedStudentRecords(prev => [removedEntry, ...prev]);
-    setPayments(prev => prev.filter(p => p.id !== studentToRemove.id));
+    setRemovedStudentRecords(prev => [removedEntry, ...prev.filter(r => r.record.id !== studentToRemove.id)]);
+    setPayments(prev => prev.filter(p => p.id !== studentToRemove.id && p.studentId !== studentToRemove.studentId && p.studentName !== studentToRemove.studentName));
+    setInvoices(prev => prev.filter(inv => inv.id !== studentToRemove.id && inv.studentId !== studentToRemove.studentId && inv.studentName !== studentToRemove.studentName));
+    setTransactions(prev => prev.filter(tx => tx.studentId !== studentToRemove.studentId && tx.studentName !== studentToRemove.studentName));
+    setReceipts(prev => prev.filter(rcpt => rcpt.studentId !== studentToRemove.studentId && rcpt.studentName !== studentToRemove.studentName));
 
     // Synchronize removal across the app (attendance records, student directory, etc.)
-    if (onDeleteStudent) {
+    if (onDeleteStudent && studentToRemove.studentName) {
       onDeleteStudent(studentToRemove.studentName);
     }
 
@@ -778,8 +798,17 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       role: 'admin',
       actionCategory: 'Payment Entry',
       actionTitle: 'Student & Fees Removed',
-      details: `Removed student "${studentToRemove.studentName}" (${studentToRemove.studentId}) and purged tuition schedule of ${studentToRemove.totalTuition} (${studentToRemove.amountPaid} paid, ${studentToRemove.totalTuition - studentToRemove.amountPaid} balance). Reason: ${finalReason}.`,
+      details: `Removed student "${studentToRemove.studentName}" (${studentToRemove.studentId}) and purged tuition schedule of $${studentToRemove.totalTuition} ($${studentToRemove.amountPaid} paid, $${studentToRemove.totalTuition - studentToRemove.amountPaid} balance). Reason: ${finalReason}.`,
       targetStudent: studentToRemove.studentName
+    });
+
+    // Native Sonner toast with instant Undo action button
+    toast.success(`Removed ${studentToRemove.studentName} from payments and school roster.`, {
+      action: {
+        label: 'Undo',
+        onClick: () => handleRestoreRemovedStudent(removedEntry)
+      },
+      duration: 8000
     });
 
     setShowRemoveVerificationModal(false);
@@ -790,10 +819,15 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
   };
 
   const handleRestoreRemovedStudent = (entryToRestore: { record: PaymentRecord; removedAt: string; reason: string; removedBy: string }) => {
-    setPayments(prev => [entryToRestore.record, ...prev]);
+    setPayments(prev => [entryToRestore.record, ...prev.filter(p => p.id !== entryToRestore.record.id)]);
     setRemovedStudentRecords(prev => prev.filter(r => r.record.id !== entryToRestore.record.id));
 
-    if (onRestoreStudent) {
+    const restoredInvs = getInvoices([entryToRestore.record]);
+    if (restoredInvs.length > 0) {
+      setInvoices(prev => [restoredInvs[0], ...prev.filter(i => i.id !== restoredInvs[0].id && i.studentId !== restoredInvs[0].studentId)]);
+    }
+
+    if (onRestoreStudent && entryToRestore.record.studentName) {
       onRestoreStudent(entryToRestore.record.studentName);
     }
 
@@ -805,6 +839,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       details: `Restored student "${entryToRestore.record.studentName}" (${entryToRestore.record.studentId}) back to tuition ledger.`,
       targetStudent: entryToRestore.record.studentName
     });
+
+    toast.success(`Restored ${entryToRestore.record.studentName} back to tuition ledger and school roster.`);
   };
 
   // Sync with localStorage
@@ -1466,22 +1502,24 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             <Heart className="w-3.5 h-3.5 text-rose-500" />
             <span>Sponsor a Student</span>
           </button>
-          {removedStudentRecords.length > 0 && (
-            <button
-              onClick={() => {
-                setShowRemovedArchiveModal(true);
-                navigate({ action: 'archive' });
-              }}
-              className="min-h-11 px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-              title="View or restore previously removed students and fees"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>Removed Archive</span>
-              <span className="px-1.5 py-0.5 bg-rose-600 text-white font-black text-[10px] rounded-full ml-0.5">
-                {removedStudentRecords.length}
-              </span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setShowRemovedArchiveModal(true);
+              navigate({ action: 'archive' });
+            }}
+            className={`min-h-11 px-3.5 py-2 ${
+              removedStudentRecords.length > 0
+                ? 'bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+            } font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs`}
+            title="View or restore previously removed students and fees"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+            <span>Removed Archive</span>
+            <span className={`px-1.5 py-0.5 ${removedStudentRecords.length > 0 ? 'bg-rose-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'} font-black text-[10px] rounded-full ml-0.5`}>
+              {removedStudentRecords.length}
+            </span>
+          </button>
           <div className="flex items-center gap-1 px-3 py-2 bg-[#01883c]/10 border border-[#01883c]/30 rounded-xl text-xs text-[#01883c] dark:text-[#86efac] font-bold shrink-0" title="Payment records and student payment logs are permanently stored and managed manually inside the portal">
             <ShieldCheck className="w-4 h-4 text-[#01883c] shrink-0" />
             <span className="hidden sm:inline text-xs">Permanent Ledger</span>
@@ -1652,7 +1690,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -1666,17 +1704,32 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                             setEditInvoiceNotes(inv.notes || '');
                             setShowEditInvoiceModal(true);
                           }}
-                          className="py-2 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          className="min-h-[44px] py-2 px-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title={`Edit Invoice for ${inv.studentName}`}
                         >
-                          <Settings className="w-3.5 h-3.5" /> Edit Invoice
+                          <Settings className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Edit</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => viewInvoiceAsReceipt(inv)}
-                          className="py-2 px-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer border border-indigo-100 dark:border-indigo-800/50"
+                          className="min-h-[44px] py-2 px-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer border border-indigo-100 dark:border-indigo-800/50"
+                          title={`View Statement for ${inv.studentName}`}
                         >
-                          <FileText className="w-3.5 h-3.5" /> Statement
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Statement</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleInitiateRemoveStudent(inv)}
+                          className="min-h-[44px] py-2 px-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer border border-rose-200 dark:border-rose-900/60 focus-visible:ring-2 focus-visible:ring-rose-500"
+                          title={`Remove ${inv.studentName} from payments and school roster`}
+                          aria-label={`Remove ${inv.studentName} from payments and school roster`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
+                          <span className="truncate">Remove</span>
                         </button>
                       </div>
                     </div>
@@ -1801,6 +1854,15 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                                 className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
                               >
                                 <FileText className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateRemoveStudent(inv)}
+                                title={`Remove ${inv.studentName} from payments and school roster`}
+                                aria-label={`Remove ${inv.studentName} from payments and school roster`}
+                                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-rose-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
                           </td>
@@ -2300,20 +2362,35 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               />
             </div>
 
-            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+            <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setShowEditInvoiceModal(false)}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-bold"
+                onClick={() => {
+                  if (selectedInvoiceForEdit) {
+                    setShowEditInvoiceModal(false);
+                    handleInitiateRemoveStudent(selectedInvoiceForEdit);
+                  }
+                }}
+                className="px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200 dark:border-rose-900/40"
               >
-                Cancel
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove Student</span>
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold"
-              >
-                Save Invoice Config
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditInvoiceModal(false)}
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Save Invoice Config
+                </button>
+              </div>
             </div>
           </form>
         </Modal>
@@ -2904,21 +2981,21 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             setRemoveError('');
             navigate({ action: undefined, id: undefined });
           }}
-          title="Verify Student & Fee Removal"
-          subtitle="Financial Ledger Purge Verification"
+          title="Remove Student from Payment Schedule"
+          subtitle="Tuition Purge & School Archival"
           icon={<ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />}
           size="md"
         >
-          <form onSubmit={handleConfirmRemoveStudent} className="space-y-4">
+          <div className="space-y-4">
               
               {/* Warning Context */}
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                <p className="font-bold text-rose-900 text-xs flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1">
+                <p className="font-bold text-rose-900 dark:text-rose-200 text-xs flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                   Are you sure you want to remove this student?
                 </p>
-                <p className="text-[11px] text-rose-800 leading-relaxed">
-                  This will purge <strong>{studentToRemove.studentName}</strong> and their corresponding tuition fees from the active payment schedule and financial analytics.
+                <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-relaxed">
+                  This will remove <strong>{studentToRemove.studentName}</strong> and their corresponding tuition fees from the active payment schedule, and archive them from active attendance and school rosters.
                 </p>
               </div>
 
@@ -2930,46 +3007,47 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               )}
 
               {/* Student Summary Card */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5">
+              <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-2.5">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-extrabold text-slate-900 text-sm">{studentToRemove.studentName}</p>
-                    <p className="font-mono text-emerald-700 text-xs font-bold">{studentToRemove.studentId}</p>
+                    <p className="font-extrabold text-slate-900 dark:text-white text-sm">{studentToRemove.studentName}</p>
+                    <p className="font-mono text-emerald-700 dark:text-emerald-400 text-xs font-bold">{studentToRemove.studentId}</p>
                   </div>
-                  <span className="px-2.5 py-1 bg-slate-200 text-slate-800 font-bold rounded-lg text-[10px]">
-                    {studentToRemove.moduleTrack}
+                  <span className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold rounded-lg text-[10px]">
+                    {studentToRemove.moduleTrack || 'General Ministry'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 text-center">
-                  <div className="bg-white p-2 rounded-xl border border-slate-200">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200 dark:border-slate-700 text-center">
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                     <p className="text-[9px] font-extrabold uppercase text-slate-400">Total Tuition</p>
-                    <p className="font-mono font-black text-slate-900 mt-0.5">${studentToRemove.totalTuition.toLocaleString()}</p>
+                    <p className="font-mono font-black text-slate-900 dark:text-white mt-0.5">${(studentToRemove.totalTuition || 0).toLocaleString()}</p>
                   </div>
-                  <div className="bg-white p-2 rounded-xl border border-slate-200">
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                     <p className="text-[9px] font-extrabold uppercase text-slate-400">Amount Paid</p>
-                    <p className="font-mono font-black text-emerald-700 mt-0.5">${studentToRemove.amountPaid.toLocaleString()}</p>
+                    <p className="font-mono font-black text-emerald-700 dark:text-emerald-400 mt-0.5">${(studentToRemove.amountPaid || 0).toLocaleString()}</p>
                   </div>
-                  <div className="bg-white p-2 rounded-xl border border-slate-200">
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
                     <p className="text-[9px] font-extrabold uppercase text-slate-400">Balance Due</p>
-                    <p className="font-mono font-black text-amber-600 mt-0.5">${(studentToRemove.totalTuition - studentToRemove.amountPaid).toLocaleString()}</p>
+                    <p className="font-mono font-black text-rose-600 dark:text-rose-400 mt-0.5">${Math.max(0, (studentToRemove.totalTuition || 0) - (studentToRemove.amountPaid || 0)).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Reason for Removal */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-extrabold uppercase text-slate-500">
+                <label className="block text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400">
                   Reason for Student Removal
                 </label>
                 <select
                   value={removalReason ?? ''}
                   onChange={(e) => setRemovalReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs focus:ring-2 focus:ring-rose-500/20"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
                 >
                   <option value="No longer a student / Withdrawn">No longer a student / Withdrawn</option>
                   <option value="Graduated / Completed Studies">Graduated / Completed Studies</option>
                   <option value="Transferred / Inactive">Transferred / Inactive</option>
+                  <option value="Financial Ineligibility">Financial Ineligibility</option>
                   <option value="Duplicate Record">Duplicate Record</option>
                   <option value="Administrative Correction">Administrative Correction</option>
                   <option value="Other">Other (Specify below)</option>
@@ -2981,34 +3059,18 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                     placeholder="Enter custom removal reason..."
                     value={customRemovalReason ?? ''}
                     onChange={(e) => setCustomRemovalReason(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium mt-1 focus:ring-2 focus:ring-rose-500/20"
+                    className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-medium mt-1 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white"
                   />
                 )}
               </div>
 
-              {/* Verification Code Input */}
-              <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                <label className="block text-[10px] font-extrabold uppercase text-rose-700">
-                  Security Verification Step *
-                </label>
-                <p className="text-[11px] text-slate-600">
-                  To confirm verification, please type <strong className="font-mono text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">REMOVE</strong> or the student's full name (<strong className="text-slate-900">{studentToRemove.studentName}</strong>):
-                </p>
-                <input
-                  type="text"
-                  required
-                  placeholder="Type REMOVE or student name..."
-                  value={removeVerificationInput ?? ''}
-                  onChange={(e) => {
-                    setRemoveVerificationInput(e.target.value);
-                    setRemoveError('');
-                  }}
-                  className="w-full p-2.5 bg-rose-50/50 border border-rose-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
+              <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40 rounded-xl flex items-center gap-2 text-emerald-800 dark:text-emerald-300 text-[11px]">
+                <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span>Quick recoverability: You can restore this student anytime via the instant Undo toast or the Removed Archive.</span>
               </div>
 
-              {/* Actions */}
-              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              {/* Actions: Single-Click Confirmation */}
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -3017,19 +3079,20 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                     setRemoveError('');
                     navigate({ action: undefined, id: undefined });
                   }}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleConfirmRemoveStudent()}
                   className="px-4 py-2.5 font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer bg-rose-600 hover:bg-rose-700 text-white active:scale-95"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Confirm Permanent Removal
+                  <Trash2 className="w-3.5 h-3.5" /> Remove & Archive Student
                 </button>
               </div>
-            </form>
-          </Modal>
+          </div>
+        </Modal>
         )}
 
       {/* Removed Students Archive Modal */}
@@ -3055,19 +3118,19 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               ) : (
                 <div className="space-y-3">
                   {removedStudentRecords.map((item, idx) => (
-                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 transition-colors">
+                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-900 text-sm">{item.record.studentName}</span>
-                          <span className="font-mono text-emerald-700 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <span className="font-extrabold text-slate-900 dark:text-white text-sm">{item.record.studentName}</span>
+                          <span className="font-mono text-emerald-700 dark:text-emerald-400 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
                             {item.record.studentId}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-600">
-                          Track: <strong className="text-slate-800">{item.record.moduleTrack}</strong> • Tuition Fee: <strong className="text-slate-900">${item.record.totalTuition.toLocaleString()}</strong> (${item.record.amountPaid.toLocaleString()} paid)
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                          Track: <strong className="text-slate-800 dark:text-slate-200">{item.record.moduleTrack}</strong> • Tuition Fee: <strong className="text-slate-900 dark:text-white">${item.record.totalTuition.toLocaleString()}</strong> (${item.record.amountPaid.toLocaleString()} paid)
                         </p>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-                          <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Reason: {item.reason}</span>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
+                          <span className="bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded font-bold">Reason: {item.reason}</span>
                           <span>Removed on: {item.removedAt}</span>
                           <span>By: {item.removedBy}</span>
                         </div>
@@ -3076,10 +3139,10 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                       <button
                         type="button"
                         onClick={() => handleRestoreRemovedStudent(item)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
                         title="Restore student and tuition record back to payment schedule"
                       >
-                        <RefreshCw className="w-3.5 h-3.5" /> Restore Record
+                        <RefreshCw className="w-3.5 h-3.5" /> Restore Student & Schedule
                       </button>
                     </div>
                   ))}
@@ -3087,14 +3150,14 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
                 type="button"
                 onClick={() => {
                   setShowRemovedArchiveModal(false);
                   navigate({ action: undefined, id: undefined });
                 }}
-                className="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
               >
                 Close Archive
               </button>

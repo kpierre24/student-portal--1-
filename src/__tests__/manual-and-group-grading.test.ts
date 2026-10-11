@@ -195,4 +195,71 @@ describe('Manual & Group Assignment Grading Suite', () => {
     expect(updated[0].score).toBe(49);
     expect(updated[0].teacherFeedback).toBe(newFeedback);
   });
+
+  describe('Group Distribution Dashboard Metrics', () => {
+    it('accurately computes student distribution across groups and identifies unassigned members', async () => {
+      const { computeGroupDistributionSummary } = await import('../services/assessmentGroupsService');
+
+      const mockGroups = [
+        {
+          id: 'grp-1',
+          groupName: 'Group 1 — Berean Exegetes',
+          memberNames: ['Jenetta Pierre', 'Vanessa Mohammed', 'Caleb Adams'],
+        },
+        {
+          id: 'grp-2',
+          groupName: 'Group 2 — Apostolic Pioneers',
+          memberNames: ['David Miller', 'Sarah Jenkins'],
+        },
+      ];
+
+      const fullRoster = [
+        'Jenetta Pierre',
+        'Vanessa Mohammed',
+        'Caleb Adams',
+        'David Miller',
+        'Sarah Jenkins',
+        'Marcus Vance', // Unassigned student
+      ];
+
+      const summary = computeGroupDistributionSummary(mockGroups, fullRoster);
+
+      expect(summary.totalRosterCount).toBe(6);
+      expect(summary.totalAssignedCount).toBe(5);
+      expect(summary.totalUnassignedCount).toBe(1);
+      expect(summary.unassignedStudentNames).toEqual(['Marcus Vance']);
+      expect(summary.groupCount).toBe(2);
+      expect(summary.targetPerGroup).toBe(3);
+      expect(summary.groups).toHaveLength(2);
+      expect(summary.groups[0].memberCount).toBe(3);
+      expect(summary.groups[1].memberCount).toBe(2);
+      expect(summary.groups[0].shortName).toBe('Berean Exegetes');
+      expect(summary.isOptimalBalance).toBe(false); // Because there is an unassigned student
+    });
+
+    it('marks optimal balance when all students are assigned with <= 1 variance', async () => {
+      const { computeGroupDistributionSummary } = await import('../services/assessmentGroupsService');
+
+      const mockGroups = [
+        {
+          id: 'grp-1',
+          groupName: 'Group 1',
+          memberNames: ['Student A', 'Student B'],
+        },
+        {
+          id: 'grp-2',
+          groupName: 'Group 2',
+          memberNames: ['Student C', 'Student D'],
+        },
+      ];
+
+      const roster = ['Student A', 'Student B', 'Student C', 'Student D'];
+      const summary = computeGroupDistributionSummary(mockGroups, roster);
+
+      expect(summary.totalRosterCount).toBe(4);
+      expect(summary.totalUnassignedCount).toBe(0);
+      expect(summary.variance).toBe(0);
+      expect(summary.isOptimalBalance).toBe(true);
+    });
+  });
 });

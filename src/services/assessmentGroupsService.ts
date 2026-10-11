@@ -252,3 +252,97 @@ export function autoDivideRoster(
 
   return newGroups;
 }
+
+export interface GroupDistributionMetric {
+  groupId: string;
+  groupName: string;
+  shortName: string;
+  memberCount: number;
+  percentageOfRoster: number;
+  isBalanced: boolean;
+  memberNames: string[];
+  description?: string;
+}
+
+export interface CohortDistributionSummary {
+  totalRosterCount: number;
+  totalAssignedCount: number;
+  totalUnassignedCount: number;
+  groupCount: number;
+  targetPerGroup: number;
+  minGroupSize: number;
+  maxGroupSize: number;
+  variance: number;
+  isOptimalBalance: boolean;
+  unassignedStudentNames: string[];
+  groups: GroupDistributionMetric[];
+}
+
+/**
+ * Computes cohort distribution metrics across assessment groups.
+ */
+export function computeGroupDistributionSummary(
+  groups: AssessmentGroup[],
+  studentRoster: string[]
+): CohortDistributionSummary {
+  const cleanRoster = Array.from(new Set(studentRoster.filter(Boolean).map((s) => s.trim())));
+  const totalRosterCount = cleanRoster.length;
+  const groupCount = groups.length;
+
+  const targetPerGroup = groupCount > 0 ? Math.round(totalRosterCount / groupCount) : 0;
+
+  const assignedSet = new Set<string>();
+  groups.forEach((g) => {
+    (g.memberNames || []).forEach((m) => {
+      if (m) assignedSet.add(m.toLowerCase().trim());
+    });
+  });
+
+  const unassignedStudentNames = cleanRoster.filter(
+    (name) => !assignedSet.has(name.toLowerCase().trim())
+  );
+  const totalUnassignedCount = unassignedStudentNames.length;
+  const totalAssignedCount = totalRosterCount - totalUnassignedCount;
+
+  const sizes = groups.map((g) => (g.memberNames ? g.memberNames.length : 0));
+  const minGroupSize = sizes.length > 0 ? Math.min(...sizes) : 0;
+  const maxGroupSize = sizes.length > 0 ? Math.max(...sizes) : 0;
+  const variance = maxGroupSize - minGroupSize;
+  const isOptimalBalance = variance <= 1 && totalUnassignedCount === 0;
+
+  const groupMetrics: GroupDistributionMetric[] = groups.map((g) => {
+    const memberCount = (g.memberNames || []).length;
+    const percentageOfRoster =
+      totalRosterCount > 0 ? Math.round((memberCount / totalRosterCount) * 100) : 0;
+    const isBalanced = Math.abs(memberCount - targetPerGroup) <= 1;
+
+    const shortName =
+      g.groupName.replace(/^Group\s*\d+\s*[—–-]\s*/i, '').trim().slice(0, 16) ||
+      g.groupName.slice(0, 16);
+
+    return {
+      groupId: g.id,
+      groupName: g.groupName,
+      shortName,
+      memberCount,
+      percentageOfRoster,
+      isBalanced,
+      memberNames: g.memberNames || [],
+      description: g.description,
+    };
+  });
+
+  return {
+    totalRosterCount,
+    totalAssignedCount,
+    totalUnassignedCount,
+    groupCount,
+    targetPerGroup,
+    minGroupSize,
+    maxGroupSize,
+    variance,
+    isOptimalBalance,
+    unassignedStudentNames,
+    groups: groupMetrics,
+  };
+}

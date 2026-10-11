@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for streamlined payment management and student removal in HTEIM School of Ministry Portal. Includes direct removal trash actions on invoice cards and table rows, single-click confirmation modal with instant toast undo, full cross-system student purge with 1-click restore archive, and enhanced tuition ledger management.",
+  "updatedAt":  "2026-10-11T03:27:26.349737881Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
