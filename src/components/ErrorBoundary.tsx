@@ -45,7 +45,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (!this.state.hasError) return this.props.children;
 
     const label = this.props.label ?? 'this section';
-    const appError = classifyError(this.state.error, 'unknown');
+    let appError;
+    try {
+      appError = classifyError(this.state.error, 'unknown');
+    } catch {
+      appError = {
+        type: 'unknown' as const,
+        userMessage: 'An unexpected error occurred. Please try again.',
+      };
+    }
 
     // Choose visual styling and icon based on error classification
     const styleMap = {

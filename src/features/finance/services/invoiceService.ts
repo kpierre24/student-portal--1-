@@ -1,6 +1,7 @@
 import { Invoice, PaymentTransaction, FinancialAdjustment, RefundRecord, FinancialAuditLog, PaymentRecord } from '../types';
 import { isDemoPayment } from '../../../data/guards';
 import { generateUUID, getNextSequenceNumber } from '../../../lib/idGenerator';
+import { safeStorage } from '../../../lib/safeStorage';
 
 const INVOICES_STORAGE_KEY = 'hteim_student_invoices';
 const ADJUSTMENTS_STORAGE_KEY = 'hteim_financial_adjustments';
@@ -8,12 +9,21 @@ const AUDIT_LOGS_STORAGE_KEY = 'hteim_financial_audit_logs';
 
 export const invoiceService = {
   getInvoices(paymentRecords: PaymentRecord[] = []): Invoice[] {
-    const saved = localStorage.getItem(INVOICES_STORAGE_KEY);
+    const saved = safeStorage.getItem(INVOICES_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(i => !isDemoPayment(i));
+          const seen = new Set<string>();
+          return parsed.filter(i => !isDemoPayment(i)).map(inv => {
+            if (!inv.id || seen.has(inv.id)) {
+              const fresh = generateUUID();
+              seen.add(fresh);
+              return { ...inv, id: fresh };
+            }
+            seen.add(inv.id);
+            return inv;
+          });
         }
       } catch (e) {
         console.error('Error loading invoices from storage', e);
@@ -23,12 +33,20 @@ export const invoiceService = {
   },
 
   saveInvoices(invoices: Invoice[]): void {
-    const clean = invoices.filter(i => !isDemoPayment(i));
-    localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(clean));
+    const seen = new Set<string>();
+    const clean = invoices.filter(i => !isDemoPayment(i)).map(inv => {
+      let id = inv.id;
+      if (!id || seen.has(id)) {
+        id = generateUUID();
+      }
+      seen.add(id);
+      return { ...inv, id };
+    });
+    safeStorage.setJSON(INVOICES_STORAGE_KEY, clean);
   },
 
   getAdjustments(): FinancialAdjustment[] {
-    const saved = localStorage.getItem(ADJUSTMENTS_STORAGE_KEY);
+    const saved = safeStorage.getItem(ADJUSTMENTS_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -41,7 +59,7 @@ export const invoiceService = {
   },
 
   saveAdjustments(adjustments: FinancialAdjustment[]): void {
-    localStorage.setItem(ADJUSTMENTS_STORAGE_KEY, JSON.stringify(adjustments));
+    safeStorage.setJSON(ADJUSTMENTS_STORAGE_KEY, adjustments);
   },
 
   recalculateInvoiceLedger(

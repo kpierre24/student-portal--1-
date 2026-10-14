@@ -43,6 +43,7 @@ import { HTEIM_CURRICULUM_COURSES } from '../data/curriculumStructure';
 interface TeacherResourceManagerProps {
   resources: LearningResource[];
   onAddResource: () => void;
+  onBulkAddResources?: () => void;
   onSelectResource: (resource: LearningResource) => void;
   onUpdateResource: (updated: LearningResource) => void;
   onDeleteResource: (resourceId: string) => void;
@@ -54,6 +55,7 @@ interface TeacherResourceManagerProps {
 export const TeacherResourceManager: React.FC<TeacherResourceManagerProps> = ({
   resources,
   onAddResource,
+  onBulkAddResources,
   onSelectResource,
   onUpdateResource,
   onDeleteResource,
@@ -284,7 +286,17 @@ export const TeacherResourceManager: React.FC<TeacherResourceManagerProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {onBulkAddResources && (
+              <button
+                type="button"
+                onClick={onBulkAddResources}
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all cursor-pointer hover:scale-105"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Bulk Upload with AI Evaluation</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onAddResource}

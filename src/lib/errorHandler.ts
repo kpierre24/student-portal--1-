@@ -60,16 +60,27 @@ export function classifyError(error: any, fallbackType: ErrorType = 'unknown'): 
     return error;
   }
 
-  const message = error?.message || String(error || '');
-  const code = error?.code || '';
-  const status = error?.status || null;
+  const message = typeof error?.message === 'string' ? error.message : (error != null ? String(error) : '');
+  const rawCode = error?.code;
+  const code = typeof rawCode === 'string' ? rawCode : (rawCode != null ? String(rawCode) : '');
+  const status = typeof error?.status === 'number' ? error.status : (Number(error?.status) || null);
 
   let type: ErrorType = fallbackType;
   let userMessage = "An unexpected error occurred. Please try again.";
   let developerMessage = message;
 
-  // 1. Timeout Errors
+  // 0. Storage Quota Exceeded
   if (
+    message.toLowerCase().includes('quota') ||
+    message.toLowerCase().includes('storage full') ||
+    code === 'QuotaExceededError' ||
+    (error?.name && String(error.name).includes('QuotaExceededError'))
+  ) {
+    type = 'unknown';
+    userMessage = 'Local browser storage quota is reached. Temporary caches have been purged and your changes are preserved in memory and synced to the cloud.';
+  }
+  // 1. Timeout Errors
+  else if (
     message.toLowerCase().includes('timeout') ||
     message.toLowerCase().includes('deadline exceeded') ||
     status === 408 ||

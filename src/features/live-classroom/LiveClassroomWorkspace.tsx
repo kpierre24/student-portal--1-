@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Radio, 
   Video, 
@@ -9,26 +9,20 @@ import {
   FileText, 
   Send, 
   MessageSquare, 
-  Clock, 
-  Calendar, 
-  ShieldCheck, 
-  Download, 
   ExternalLink, 
-  Sliders, 
-  Share2, 
-  Heart, 
-  AlertCircle,
-  HelpCircle,
   Save,
-  ChevronRight,
+  Bookmark,
   BookOpenCheck,
-  Bookmark
+  Heart,
+  HelpCircle,
+  Layers,
+  ShieldCheck,
+  Check,
+  Info
 } from 'lucide-react';
 import { AppUser } from '../../lib/userAuth';
 import { ClassDay, StudentSummary, TabType } from '../../types';
 import { logActivity } from '../../lib/auditLogger';
-import { LiveWebRTCStudio } from './LiveWebRTCStudio';
-import { LiveClassroomSession, LiveChatMessage } from './types';
 import { appendStudentNote } from '../../utils/notesStorage';
 
 export interface LiveClassroomWorkspaceProps {
@@ -78,56 +72,54 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
   const isTeacherOrAdmin = appUser?.role === 'admin' || appUser?.role === 'teacher';
   const currentStudentName = appUser?.studentName || appUser?.name || 'Student Candidate';
 
-  // 1. Live Session Configuration State
-  const [session, setSession] = useState<LiveClassroomSession>(() => {
-    return {
-      id: 'live_som_active',
-      title: 'Module 6: School of the Pastors & Practical Homiletics Lab',
-      moduleCode: 'SOM-MOD-6',
-      moduleTitle: 'School of Pastors & Teachers',
-      instructorName: 'Pastor Samuel Selkridge',
-      roomName: 'HTEIM-SchoolOfMinistry-Cohort2026-Module6',
-      isLive: true,
-      startTime: new Date().toISOString(),
-      sessionMode: 'interactive_lab',
-      activeAttendancePrompt: true,
-      pinnedScripture: '2 Timothy 4:2 — Preach the word; be instant in season, out of season...',
-      pinnedHandoutUrl: '/resources/Module6_Homiletics_Guide.pdf'
-    };
+  // Session State
+  const [session, setSession] = useState({
+    id: 'live_som_active',
+    title: 'Module 6: School of the Pastors & Practical Homiletics Lab',
+    moduleCode: 'SOM-MOD-6',
+    moduleTitle: 'School of Pastors & Teachers',
+    instructorName: 'Pastor Samuel Selkridge',
+    zoomMeetingId: '815 0537 7396',
+    zoomPasscode: '163738',
+    zoomUrl: 'https://zoom.us/j/81505377396',
+    googleMeetUrl: 'https://meet.google.com/hte-som-live',
+    platformMode: 'zoom' as 'zoom' | 'google_meet',
+    isLive: true,
+    pinnedScripture: '2 Timothy 4:2 — Preach the word; be instant in season, out of season...'
   });
 
-  // 2. Attendance Check-In State
+  // Attendance Check-In State
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTimestamp, setCheckInTimestamp] = useState<string | null>(null);
   const [checkedInCount, setCheckedInCount] = useState(14);
-  const [activeTab, setActiveTab] = useState<'notes' | 'chat' | 'scriptures'>('notes');
+  const [activeTab, setActiveTab] = useState<'notes' | 'chat' | 'evaluation' | 'scriptures'>('notes');
 
-  // 3. Live Lecture Notes State
+  // Live Lecture Notes State
   const [liveNoteText, setLiveNoteText] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSavedMessage, setNoteSavedMessage] = useState<string | null>(null);
 
-  // 4. Live Chat & Prayer Requests State
-  const [chatMessages, setChatMessages] = useState<LiveChatMessage[]>([
+  // Live Chat & Prayer Requests State
+  const [chatMessages, setChatMessages] = useState([
     {
       id: 'msg-1',
       senderName: 'Pastor Samuel Selkridge',
       senderRole: 'teacher',
-      text: 'Welcome ministers! Please open your Bibles to 2 Timothy 4 and prepare for the homiletics activation.',
+      text: 'Welcome ministers! Our Tuesday live lecture is active via Zoom feed. Please open your Bibles to 2 Timothy 4.',
       timestamp: '7:01 PM'
     },
     {
       id: 'msg-2',
       senderName: 'Danielle Clarke',
       senderRole: 'student',
-      text: 'Good evening Pastor! Connected and ready.',
+      text: 'Connected via Zoom feed and ready!',
       timestamp: '7:02 PM'
     },
     {
       id: 'msg-3',
       senderName: 'Minister Caleb Washington',
       senderRole: 'student',
-      text: 'Prayer Request: Strength for the youth outreach this Saturday.',
+      text: 'Prayer Request: Strength for the weekend ministry outreach.',
       timestamp: '7:05 PM',
       isPrayerRequest: true
     }
@@ -135,7 +127,7 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
   const [inputChatText, setInputChatText] = useState('');
   const [isPrayerTag, setIsPrayerTag] = useState(false);
 
-  // Check if student already checked in previously in local storage
+  // Check if student already checked in
   useEffect(() => {
     if (appUser?.name) {
       const key = `hteim_live_checkin_${session.id}_${appUser.name.toLowerCase().trim()}`;
@@ -147,7 +139,6 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
     }
   }, [appUser?.name, session.id]);
 
-  // Handle student clicking "Confirm Live Attendance"
   const handleConfirmAttendance = () => {
     if (!appUser?.name) return;
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -158,7 +149,6 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
     const key = `hteim_live_checkin_${session.id}_${appUser.name.toLowerCase().trim()}`;
     localStorage.setItem(key, now);
 
-    // Call upstream attendance recorder
     if (onRecordLiveAttendance) {
       onRecordLiveAttendance(appUser.name, session.title);
     }
@@ -169,11 +159,10 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
       actionCategory: 'Attendance Override',
       actionTitle: 'Live Classroom Attendance Logged',
       targetStudent: appUser.name,
-      details: `Student verified live participation in WebRTC session: ${session.title} at ${now}.`
+      details: `Student verified participation in live session: ${session.title} at ${now}.`
     });
   };
 
-  // Save live notes into personal student notes collection
   const handleSaveLiveNotes = () => {
     if (!liveNoteText.trim() || !currentStudentName) return;
     setIsSavingNote(true);
@@ -204,12 +193,11 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
     }
   };
 
-  // Send in-room chat message
   const handleSendChatMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputChatText.trim()) return;
 
-    const newMsg: LiveChatMessage = {
+    const newMsg = {
       id: `msg-${Date.now()}`,
       senderName: appUser?.name || 'Student Candidate',
       senderRole: (appUser?.role as any) || 'student',
@@ -223,33 +211,29 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
     setIsPrayerTag(false);
   };
 
-  // Module Preset Rooms
   const MODULE_ROOMS = [
-    { code: 'SOM-MOD-1', title: 'Module 1: Biblical Hermeneutics & Foundation', instructor: 'Pastor Samuel Selkridge', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module1', scripture: '1 Corinthians 3:10-11 — According to the grace of God which is given unto me...' },
-    { code: 'SOM-MOD-2', title: 'Module 2: Evangelism & Soul Winning Practicum', instructor: 'Minister Caleb Washington', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module2', scripture: 'Mark 16:15 — Go ye into all the world, and preach the gospel...' },
-    { code: 'SOM-MOD-3', title: 'Module 3: Ministerial Ethics & Pastoral Leadership', instructor: 'Pastor Samuel Selkridge', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module3', scripture: '1 Timothy 3:2-7 — A bishop then must be blameless...' },
-    { code: 'SOM-MOD-4', title: 'Module 4: Apostolic Governance & Church Planting', instructor: 'Apostle Dr. Selkridge', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module4', scripture: 'Ephesians 4:11-12 — And he gave some, apostles; and some, prophets...' },
-    { code: 'SOM-MOD-5', title: 'Module 5: Prophetic Ministry & Spiritual Warfare', instructor: 'Pastor Samuel Selkridge', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module5', scripture: '1 Corinthians 14:3 — But he that prophesieth speaketh unto men...' },
-    { code: 'SOM-MOD-6', title: 'Module 6: School of the Pastors & Practical Homiletics Lab', instructor: 'Pastor Samuel Selkridge', room: 'HTEIM-SchoolOfMinistry-Cohort2026-Module6', scripture: '2 Timothy 4:2 — Preach the word; be instant in season, out of season...' }
+    { code: 'SOM-MOD-1', title: 'Module 1: Biblical Hermeneutics & Foundation', instructor: 'Pastor Samuel Selkridge', zoomId: '815 0537 7396', passcode: '163738', scripture: '1 Corinthians 3:10-11' },
+    { code: 'SOM-MOD-2', title: 'Module 2: Evangelism & Soul Winning Practicum', instructor: 'Minister Caleb Washington', zoomId: '815 0537 7396', passcode: '163738', scripture: 'Mark 16:15' },
+    { code: 'SOM-MOD-3', title: 'Module 3: Ministerial Ethics & Pastoral Leadership', instructor: 'Pastor Samuel Selkridge', zoomId: '815 0537 7396', passcode: '163738', scripture: '1 Timothy 3:2-7' },
+    { code: 'SOM-MOD-4', title: 'Module 4: Apostolic Governance & Church Planting', instructor: 'Apostle Dr. Selkridge', zoomId: '815 0537 7396', passcode: '163738', scripture: 'Ephesians 4:11-12' },
+    { code: 'SOM-MOD-5', title: 'Module 5: Prophetic Ministry & Spiritual Warfare', instructor: 'Pastor Samuel Selkridge', zoomId: '815 0537 7396', passcode: '163738', scripture: '1 Corinthians 14:3' },
+    { code: 'SOM-MOD-6', title: 'Module 6: School of the Pastors & Practical Homiletics Lab', instructor: 'Pastor Samuel Selkridge', zoomId: '815 0537 7396', passcode: '163738', scripture: '2 Timothy 4:2' }
   ];
 
   const handleSelectModuleRoom = (moduleCode: string) => {
     const selected = MODULE_ROOMS.find(m => m.code === moduleCode);
     if (selected) {
-      setSession({
+      setSession(prev => ({
+        ...prev,
         id: `live_${moduleCode.toLowerCase().replace(/-/g, '_')}`,
         title: selected.title,
         moduleCode: selected.code,
         moduleTitle: selected.title,
         instructorName: selected.instructor,
-        roomName: selected.room,
-        isLive: true,
-        startTime: new Date().toISOString(),
-        sessionMode: 'interactive_lab',
-        activeAttendancePrompt: true,
-        pinnedScripture: selected.scripture,
-        pinnedHandoutUrl: `/resources/${selected.code}_Guide.pdf`
-      });
+        zoomMeetingId: selected.zoomId,
+        zoomPasscode: selected.passcode,
+        pinnedScripture: selected.scripture
+      }));
       setIsCheckedIn(false);
       setCheckInTimestamp(null);
     }
@@ -260,7 +244,38 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
   return (
     <div className={`space-y-6 ${className}`} id="live-classroom-module">
       
-      {/* ─── 1. Live Attendance Verification Banner ─── */}
+      {/* ─── 1. Deprecation & Coming Soon Notice Banner for WebRTC Studio ─── */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/70 border border-amber-500/30 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start md:items-center gap-3.5">
+          <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+            <Info className="w-5 h-5" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-mono font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                WebRTC Studio Deprecated • Coming Soon
+              </span>
+              <span className="text-[10px] font-mono text-slate-300 px-2 py-0.5 rounded-full bg-white/10">
+                Active Zoom Feed Portal Enabled
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm font-bold text-slate-200">
+              The built-in WebRTC video streaming studio is currently deprecated and scheduled for an upgraded release. This portal now functions as your official <strong className="text-white">Zoom Feed & Google Platform Integration Hub</strong>.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('evaluation')}
+          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Read Google Meet vs. Zoom Evaluation</span>
+        </button>
+      </div>
+
+      {/* ─── 2. Live Attendance & Room Banner ─── */}
       <section className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-[#022044] via-[#023264] to-[#041a33] text-white border border-[#025798]/50 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3 rounded-2xl bg-[#b38f53]/20 border border-[#dfc18b]/40 text-[#dfc18b] shrink-0">
@@ -270,29 +285,28 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-mono font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-400/30 inline-flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                Live Classroom Session
+                Live Tuesday Lecture Feed
               </span>
               <span className="text-[10px] font-mono text-sky-200/90 px-2 py-0.5 rounded-full bg-white/10">
-                {checkedInCount} Students In Room
+                {checkedInCount} Ministers Checked In
               </span>
             </div>
             <h1 className="text-base sm:text-lg font-black text-white">
               {session.title}
             </h1>
             <p className="text-xs text-sky-100/80">
-              Lead Lecturer: <strong className="text-white">{session.instructorName}</strong> • Real-Time WebRTC Audio/Video
+              Lead Lecturer: <strong className="text-white">{session.instructorName}</strong> • Official Zoom & Google Meet Gateway
             </p>
           </div>
         </div>
 
         {/* Room Switcher & Attendance Action Trigger */}
         <div className="shrink-0 flex items-center gap-3 flex-wrap">
-          {/* 6-Module Room Dropdown Selector */}
           <select
             value={session.moduleCode}
             onChange={(e) => handleSelectModuleRoom(e.target.value)}
             className="px-3 py-2 rounded-2xl bg-slate-900/90 border border-slate-700 text-slate-100 text-xs font-bold cursor-pointer focus:ring-2 focus:ring-[#dfc18b] focus:outline-none"
-            title="Switch Live Classroom Module Room"
+            title="Switch Live Module Room"
           >
             {MODULE_ROOMS.map(m => (
               <option key={m.code} value={m.code}>
@@ -304,7 +318,7 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
           {isCheckedIn ? (
             <div className="px-4 py-2 rounded-2xl bg-emerald-950/80 border border-emerald-400/40 text-emerald-300 flex items-center gap-2 text-xs font-black shadow-md animate-fadeIn">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Attendance Confirmed ({checkInTimestamp})</span>
+              <span>Attendance Logged ({checkInTimestamp})</span>
             </div>
           ) : (
             <button
@@ -319,79 +333,154 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
         </div>
       </section>
 
-      {/* ─── 2. Main Studio Canvas (Video Left 8 cols, Companion Right 4 cols) ─── */}
+      {/* ─── 3. Main Content Grid (Zoom Feed Left 8 cols, Companion Right 4 cols) ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Column: Interactive WebRTC Video Conference Studio (8 cols) */}
+        {/* Left Column: Zoom Feed Portal / Stream Viewer (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
-          <LiveWebRTCStudio
-            session={session}
-            appUser={appUser}
-            isModerator={isTeacherOrAdmin}
-            onAttendanceVerified={handleConfirmAttendance}
-          />
+          <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800 text-white shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Module Syllabus & Pinned Resources Bar */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <div className="min-w-0">
-                <span className="font-extrabold text-slate-900 dark:text-white">Pinned Scripture: </span>
-                <span className="font-mono text-slate-600 dark:text-slate-300">{session.pinnedScripture}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-black text-xl">
+                  ZOOM
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white">Live Zoom Feed Portal</h3>
+                  <p className="text-xs text-slate-400">Secure connection to HTEIM Ministry Broadcast Studio</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={session.zoomUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Launch Zoom Feed in App / Browser</span>
+                </a>
               </div>
             </div>
 
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('library')}
-                className="text-[#025798] dark:text-[#7dd3fc] font-bold hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
-              >
-                <Bookmark className="w-3.5 h-3.5" />
-                <span>Open Resource Handouts</span>
-              </button>
-            )}
+            {/* Zoom Meeting Credentials Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs">
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Meeting ID</span>
+                <span className="font-mono font-black text-sm text-white select-all">{session.zoomMeetingId}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Passcode</span>
+                <span className="font-mono font-black text-sm text-[#dfc18b] select-all">{session.zoomPasscode}</span>
+              </div>
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Schedule</span>
+                <span className="font-bold text-slate-200">Tuesdays @ 7:00 PM EST</span>
+              </div>
+            </div>
+
+            {/* Embedded Zoom Feed / Interactive View Placeholder */}
+            <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center p-6 text-center space-y-4">
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent z-10" />
+              <div className="z-20 space-y-3 max-w-md mx-auto">
+                <div className="w-16 h-16 rounded-full bg-blue-600/30 border border-blue-500/50 text-blue-400 flex items-center justify-center mx-auto animate-pulse">
+                  <Video className="w-8 h-8" />
+                </div>
+                <h4 className="text-sm font-extrabold text-white">HTEIM Zoom Broadcast Live Feed Active</h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Join the live room to participate in interactive homiletics discussions, Q&A sessions, and ministerial activations with Pastor Samuel Selkridge.
+                </p>
+                <div className="pt-2 flex items-center justify-center gap-3">
+                  <a
+                    href={session.zoomUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-xl transition-all cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <span>Connect to Zoom Stream</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Pinned Scripture Bar */}
+            <div className="p-4 bg-slate-800/50 border border-slate-700/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+                <div className="min-w-0">
+                  <span className="font-extrabold text-white">Pinned Scripture: </span>
+                  <span className="font-mono text-slate-300">{session.pinnedScripture}</span>
+                </div>
+              </div>
+
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('library')}
+                  className="text-sky-400 font-bold hover:underline shrink-0 flex items-center gap-1 cursor-pointer"
+                >
+                  <Bookmark className="w-3.5 h-3.5" />
+                  <span>Open Study Handouts</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Live Companion Studio (Chat, Notes, Scriptures) (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-md min-h-[550px]">
+        {/* Right Column: Companion Studio (Chat, Notes, Evaluation) (4 cols) */}
+        <div className="lg:col-span-4 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-md min-h-[580px]">
           
           {/* Tab Selection Bar */}
-          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-1.5">
+          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 p-1.5 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab('notes')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 px-2 text-[11px] font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
                 activeTab === 'notes'
                   ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Live Notes</span>
+              <span>Notes</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('chat')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 px-2 text-[11px] font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
                 activeTab === 'chat'
                   ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Q&A / Chat</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold">
+              <span>Q&A</span>
+              <span className="px-1 py-0.2 rounded-full text-[9px] font-mono bg-indigo-100 dark:bg-indigo-950 text-indigo-700 font-bold">
                 {chatMessages.length}
               </span>
             </button>
 
             <button
               type="button"
+              onClick={() => setActiveTab('evaluation')}
+              className={`flex-1 py-2 px-2 text-[11px] font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                activeTab === 'evaluation'
+                  ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Google Meet vs Zoom</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('scriptures')}
-              className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-2 px-2 text-[11px] font-black rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
                 activeTab === 'scriptures'
                   ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
@@ -402,7 +491,7 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
             </button>
           </div>
 
-          {/* Tab 1: Synchronized Live Lecture Notes Pad */}
+          {/* Tab 1: Lecture Notes Pad */}
           {activeTab === 'notes' && (
             <div className="flex-1 p-4 flex flex-col justify-between space-y-3 animate-fadeIn">
               <div className="space-y-2 flex-1 flex flex-col">
@@ -420,15 +509,13 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
                 <textarea
                   value={liveNoteText}
                   onChange={(e) => setLiveNoteText(e.target.value)}
-                  placeholder="Type sermon notes, key prophetic insights, ministerial principles, and key action items here..."
-                  className="flex-1 w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none font-sans leading-relaxed min-h-[300px]"
+                  placeholder="Type sermon notes, prophetic insights, and homiletics principles here..."
+                  className="flex-1 w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-150 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none font-sans leading-relaxed min-h-[300px]"
                 />
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                <p className="text-[10px] text-slate-400">
-                  Notes are stored directly in your portal journal.
-                </p>
+                <p className="text-[10px] text-slate-400">Stored in your journal.</p>
                 <button
                   type="button"
                   onClick={handleSaveLiveNotes}
@@ -442,11 +529,9 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
             </div>
           )}
 
-          {/* Tab 2: Live In-Room Chat & Intercessory Prayer Wall */}
+          {/* Tab 2: Q&A / Chat */}
           {activeTab === 'chat' && (
             <div className="flex-1 p-4 flex flex-col justify-between space-y-3 animate-fadeIn">
-              
-              {/* Message List */}
               <div className="flex-1 space-y-2.5 overflow-y-auto max-h-[380px] pr-1">
                 {chatMessages.map(msg => (
                   <div 
@@ -476,7 +561,6 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
                 ))}
               </div>
 
-              {/* Chat Input Form */}
               <form onSubmit={handleSendChatMessage} className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <div className="flex items-center gap-2">
                   <button
@@ -498,7 +582,7 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
                     type="text"
                     value={inputChatText}
                     onChange={(e) => setInputChatText(e.target.value)}
-                    placeholder={isPrayerTag ? "Type your intercessory prayer request..." : "Ask a question or share comment..."}
+                    placeholder={isPrayerTag ? "Type intercessory prayer request..." : "Ask a question..."}
                     className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                   />
                   <button
@@ -510,14 +594,62 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
                   </button>
                 </div>
               </form>
-
             </div>
           )}
 
-          {/* Tab 3: Scripture Companion */}
+          {/* Tab 3: Google Meet vs. Zoom Platform Evaluation */}
+          {activeTab === 'evaluation' && (
+            <div className="flex-1 p-4 space-y-4 animate-fadeIn overflow-y-auto max-h-[440px] text-xs">
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 space-y-2">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-extrabold">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Executive Platform Evaluation: Google Meet vs. Zoom</span>
+                </div>
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[11px]">
+                  Since HTEIM School of Ministry is anchored in the <strong className="text-slate-900 dark:text-white">Google platform ecosystem</strong> (Google Workspace, Drive, Gmail, Firebase), here is an architectural comparison regarding live classrooms:
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <h5 className="font-extrabold text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+                    <span>Google Meet (Recommended for Ecosystem)</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">Native Google</span>
+                  </h5>
+                  <ul className="list-disc pl-4 space-y-1 text-slate-600 dark:text-slate-300 text-[11px]">
+                    <li><strong>Direct Drive Archival:</strong> Recordings save instantly into designated Google Drive curriculum folders.</li>
+                    <li><strong>Calendar Integration:</strong> One-click Google Calendar sync for Tuesday lectures.</li>
+                    <li><strong>Zero Friction Auth:</strong> Students authenticated via Google / Firebase join instantly without separate app downloads.</li>
+                    <li><strong>AI Captioning:</strong> Real-time automated Google AI captions and transcript summaries.</li>
+                  </ul>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <h5 className="font-extrabold text-blue-600 dark:text-blue-400 flex items-center justify-between">
+                    <span>Zoom Video Conferencing (Current Primary)</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono">External Broadcast</span>
+                  </h5>
+                  <ul className="list-disc pl-4 space-y-1 text-slate-600 dark:text-slate-300 text-[11px]">
+                    <li><strong>Large Scale Convocations:</strong> Superior capacity and stability for 500+ attendees during annual convocations.</li>
+                    <li><strong>Host & Security Controls:</strong> Advanced waiting rooms and co-host breakout rooms.</li>
+                    <li><strong>External App Required:</strong> Requires Zoom client installation or browser redirect.</li>
+                  </ul>
+                </div>
+
+                <div className="p-3 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-[11px] space-y-1">
+                  <p className="font-extrabold text-indigo-900 dark:text-indigo-200">Final Verdict & Recommendation:</p>
+                  <p className="text-slate-700 dark:text-slate-300">
+                    Switching to <strong>Google Meet</strong> for standard weekly Tuesday lectures will streamline your workflow (automatic cloud drive recordings, zero sign-in friction for Google users). However, maintaining Zoom credentials for major apostolic convocations provides the best of both worlds!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: Scripture Companion */}
           {activeTab === 'scriptures' && (
-            <div className="flex-1 p-4 space-y-4 animate-fadeIn">
-              <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/40 space-y-2">
+            <div className="flex-1 p-4 space-y-4 animate-fadeIn overflow-y-auto max-h-[440px]">
+              <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 space-y-2">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                   Key Scripture Passage
                 </span>
@@ -527,20 +659,6 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
                 <blockquote className="text-xs text-slate-700 dark:text-slate-300 italic leading-relaxed border-l-2 border-amber-400 pl-3">
                   "{activeScripture.text}"
                 </blockquote>
-              </div>
-
-              <div className="space-y-2">
-                <h5 className="text-xs font-black text-slate-800 dark:text-slate-200">
-                  Course Modules Scripture Foundations
-                </h5>
-                <div className="space-y-1.5 text-xs">
-                  {Object.entries(DEFAULT_SCRIPTURE_MAP).map(([mod, item]) => (
-                    <div key={mod} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                      <p className="font-extrabold text-[11px] text-indigo-700 dark:text-indigo-400">{mod}: {item.ref}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{item.text}</p>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           )}

@@ -15,6 +15,8 @@ import { INITIAL_PAYMENTS } from '../data/initialPortalData';
 import { MANUAL_ALIASES } from '../features/students/studentCanonicalization';
 import { portalApiClient } from '../services/api/portalApiClient';
 import { generateUUID, getNextSequenceNumber } from './idGenerator';
+import { safeStorage } from './safeStorage';
+import { normalizeStudentName } from './studentNames';
 
 // Storage Keys
 const INVOICES_STORAGE_KEY = 'hteim_student_invoices';
@@ -25,19 +27,94 @@ const REFUNDS_STORAGE_KEY = 'hteim_financial_refunds';
 const AUDIT_LOGS_STORAGE_KEY = 'hteim_financial_audit_logs';
 
 /**
- * Loads all invoices from local storage or bootstraps from initial payment records.
+ * Loads all invoices from storage or bootstraps/reconciles from payment records.
  */
 export function getInvoices(paymentRecords: PaymentRecord[] = []): Invoice[] {
-  const saved = localStorage.getItem(INVOICES_STORAGE_KEY);
+  const saved = safeStorage.getItem(INVOICES_STORAGE_KEY);
+  let parsed: Invoice[] = [];
   if (saved) {
     try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+      const loaded = JSON.parse(saved);
+      if (Array.isArray(loaded) && loaded.length > 0) {
+        // Enforce ID uniqueness on loaded records
+        const seenLoadedIds = new Set<string>();
+        parsed = loaded.map(inv => {
+          if (!inv.id || seenLoadedIds.has(inv.id)) {
+            const freshId = generateUUID();
+            seenLoadedIds.add(freshId);
+            return { ...inv, id: freshId };
+          }
+          seenLoadedIds.add(inv.id);
+          return inv;
+        });
       }
     } catch (e) {
       console.error('Error loading invoices from storage', e);
     }
+  }
+
+  // If explicit paymentRecords are provided, reconcile and synchronize them!
+  if (paymentRecords && paymentRecords.length > 0) {
+    const transactions = getTransactions();
+    const adjustments = getAdjustments();
+    const refunds = getRefunds();
+
+    const existingMap = new Map<string, Invoice>();
+    parsed.forEach(inv => {
+      if (inv.studentId) existingMap.set(inv.studentId.toLowerCase(), inv);
+      if (inv.studentName) existingMap.set(normalizeStudentName(inv.studentName), inv);
+    });
+
+    const reconciledInvoices: Invoice[] = [];
+    const seenStudentKeys = new Set<string>();
+    const seenInvoiceIds = new Set<string>();
+
+    paymentRecords.forEach(p => {
+      const studentIdKey = (p.studentId || '').toLowerCase();
+      const studentNameKey = normalizeStudentName(p.studentName || '');
+      const lookupKey = studentIdKey || studentNameKey;
+
+      if (!lookupKey || seenStudentKeys.has(lookupKey)) return;
+      seenStudentKeys.add(lookupKey);
+
+      const existing = (studentIdKey && existingMap.get(studentIdKey)) || (studentNameKey && existingMap.get(studentNameKey));
+
+      if (existing) {
+        // Ensure the invoice ID has not already been used
+        const invoiceId = (!existing.id || seenInvoiceIds.has(existing.id)) ? generateUUID() : existing.id;
+        seenInvoiceIds.add(invoiceId);
+
+        // Synchronize tuition and payment changes while preserving custom adjustments & lines
+        const maxPaid = Math.max(Number(p.amountPaid || 0), Number(existing.amountPaid || 0));
+        const updatedInvoice: Invoice = {
+          ...existing,
+          id: invoiceId,
+          totalTuition: p.totalTuition !== undefined ? p.totalTuition : existing.totalTuition,
+          amountPaid: maxPaid,
+          moduleTrack: p.moduleTrack || existing.moduleTrack,
+          notes: p.notes !== undefined ? p.notes : existing.notes,
+        };
+        reconciledInvoices.push(recalculateInvoiceLedger(updatedInvoice, transactions, adjustments, refunds));
+      } else {
+        // Brand new student record: bootstrap invoice
+        const bootstrapped = bootstrapFromPaymentRecords([p]);
+        if (bootstrapped.invoices.length > 0) {
+          const newInv = bootstrapped.invoices[0];
+          if (!newInv.id || seenInvoiceIds.has(newInv.id)) {
+            newInv.id = generateUUID();
+          }
+          seenInvoiceIds.add(newInv.id);
+          reconciledInvoices.push(newInv);
+        }
+      }
+    });
+
+    saveInvoices(reconciledInvoices);
+    return reconciledInvoices;
+  }
+
+  if (parsed.length > 0) {
+    return parsed;
   }
 
   // Bootstrap initial dataset
@@ -51,15 +128,36 @@ export function getInvoices(paymentRecords: PaymentRecord[] = []): Invoice[] {
 }
 
 export function saveInvoices(invoices: Invoice[]): void {
-  localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+  const seenIds = new Set<string>();
+  const deduplicated: Invoice[] = [];
+  invoices.forEach(inv => {
+    let id = inv.id;
+    if (!id || seenIds.has(id)) {
+      id = generateUUID();
+    }
+    seenIds.add(id);
+    deduplicated.push({ ...inv, id });
+  });
+  safeStorage.setJSON(INVOICES_STORAGE_KEY, deduplicated);
 }
 
 export function getTransactions(): PaymentTransaction[] {
-  const saved = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+  const saved = safeStorage.getItem(TRANSACTIONS_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const seenIds = new Set<string>();
+        return parsed.map(tx => {
+          if (!tx.id || seenIds.has(tx.id)) {
+            const fresh = generateUUID();
+            seenIds.add(fresh);
+            return { ...tx, id: fresh };
+          }
+          seenIds.add(tx.id);
+          return tx;
+        });
+      }
     } catch (e) {
       console.error('Error loading transactions', e);
     }
@@ -68,15 +166,36 @@ export function getTransactions(): PaymentTransaction[] {
 }
 
 export function saveTransactions(transactions: PaymentTransaction[]): void {
-  localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
+  const seenIds = new Set<string>();
+  const deduplicated: PaymentTransaction[] = [];
+  transactions.forEach(tx => {
+    let id = tx.id;
+    if (!id || seenIds.has(id)) {
+      id = generateUUID();
+    }
+    seenIds.add(id);
+    deduplicated.push({ ...tx, id });
+  });
+  safeStorage.setJSON(TRANSACTIONS_STORAGE_KEY, deduplicated);
 }
 
 export function getReceipts(): Receipt[] {
-  const saved = localStorage.getItem(RECEIPTS_STORAGE_KEY);
+  const saved = safeStorage.getItem(RECEIPTS_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const seenIds = new Set<string>();
+        return parsed.map(rc => {
+          if (!rc.id || seenIds.has(rc.id)) {
+            const fresh = generateUUID();
+            seenIds.add(fresh);
+            return { ...rc, id: fresh };
+          }
+          seenIds.add(rc.id);
+          return rc;
+        });
+      }
     } catch (e) {
       console.error('Error loading receipts', e);
     }
@@ -85,11 +204,21 @@ export function getReceipts(): Receipt[] {
 }
 
 export function saveReceipts(receipts: Receipt[]): void {
-  localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify(receipts));
+  const seenIds = new Set<string>();
+  const deduplicated: Receipt[] = [];
+  receipts.forEach(rc => {
+    let id = rc.id;
+    if (!id || seenIds.has(rc.id)) {
+      id = generateUUID();
+    }
+    seenIds.add(id);
+    deduplicated.push({ ...rc, id });
+  });
+  safeStorage.setJSON(RECEIPTS_STORAGE_KEY, deduplicated);
 }
 
 export function getAdjustments(): FinancialAdjustment[] {
-  const saved = localStorage.getItem(ADJUSTMENTS_STORAGE_KEY);
+  const saved = safeStorage.getItem(ADJUSTMENTS_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -102,11 +231,11 @@ export function getAdjustments(): FinancialAdjustment[] {
 }
 
 export function saveAdjustments(adjustments: FinancialAdjustment[]): void {
-  localStorage.setItem(ADJUSTMENTS_STORAGE_KEY, JSON.stringify(adjustments));
+  safeStorage.setJSON(ADJUSTMENTS_STORAGE_KEY, adjustments);
 }
 
 export function getRefunds(): RefundRecord[] {
-  const saved = localStorage.getItem(REFUNDS_STORAGE_KEY);
+  const saved = safeStorage.getItem(REFUNDS_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -119,11 +248,11 @@ export function getRefunds(): RefundRecord[] {
 }
 
 export function saveRefunds(refunds: RefundRecord[]): void {
-  localStorage.setItem(REFUNDS_STORAGE_KEY, JSON.stringify(refunds));
+  safeStorage.setJSON(REFUNDS_STORAGE_KEY, refunds);
 }
 
 export function getAuditLogs(): FinancialAuditLog[] {
-  const saved = localStorage.getItem(AUDIT_LOGS_STORAGE_KEY);
+  const saved = safeStorage.getItem(AUDIT_LOGS_STORAGE_KEY);
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
@@ -136,7 +265,7 @@ export function getAuditLogs(): FinancialAuditLog[] {
 }
 
 export function saveAuditLogs(logs: FinancialAuditLog[]): void {
-  localStorage.setItem(AUDIT_LOGS_STORAGE_KEY, JSON.stringify(logs));
+  safeStorage.setJSON(AUDIT_LOGS_STORAGE_KEY, logs);
 }
 
 export function logFinancialAudit(log: Omit<FinancialAuditLog, 'id' | 'timestamp'>): FinancialAuditLog {
@@ -185,16 +314,22 @@ export function recalculateInvoiceLedger(
 
   // 2. Payments allocated to this invoice (completed status only)
   const invoiceTransactions = transactions.filter(
-    t => (t.invoiceId === invoice.id || t.allocations?.some(a => a.invoiceId === invoice.id)) && t.status === 'Completed'
+    t => (t.invoiceId === invoice.id || 
+         (t.studentId && invoice.studentId && t.studentId.toLowerCase() === invoice.studentId.toLowerCase()) ||
+         (t.studentName && invoice.studentName && normalizeStudentName(t.studentName) === normalizeStudentName(invoice.studentName)) ||
+         t.allocations?.some(a => a.invoiceId === invoice.id)) && t.status === 'Completed'
   );
 
-  const totalPaid = invoiceTransactions.reduce((acc, t) => {
+  const totalPaidFromTransactions = invoiceTransactions.reduce((acc, t) => {
     if (t.allocations && t.allocations.length > 0) {
       const alloc = t.allocations.find(a => a.invoiceId === invoice.id);
       return acc + (alloc ? Number(alloc.allocatedAmount || 0) : 0);
     }
     return acc + Number(t.amount || 0);
   }, 0);
+
+  // Authoritative paid amount: ensure manual invoice.amountPaid is never wiped out if higher than transactions
+  const totalPaid = Math.max(totalPaidFromTransactions, Number(invoice.amountPaid || 0));
 
   // 3. Refunds allocated to this invoice (approved / processed only)
   const invoiceRefunds = refunds.filter(
@@ -279,7 +414,9 @@ export function recalculateInvoiceLedger(
  * Recalculates balance authoritatively.
  */
 export function recordPaymentTransaction(params: {
-  invoiceId: string;
+  invoiceId?: string;
+  studentName?: string;
+  studentId?: string;
   amount: number;
   paymentMethod: string;
   paymentReference?: string;
@@ -294,9 +431,22 @@ export function recordPaymentTransaction(params: {
   const adjustments = getAdjustments();
   const refunds = getRefunds();
 
-  const invoiceIndex = invoices.findIndex(i => i.id === params.invoiceId || (i.invoiceNumber && i.invoiceNumber === params.invoiceId));
+  let invoiceIndex = -1;
+  if (params.invoiceId) {
+    invoiceIndex = invoices.findIndex(i => i.id === params.invoiceId || (i.invoiceNumber && i.invoiceNumber === params.invoiceId));
+  }
+  if (invoiceIndex === -1 && params.studentName) {
+    invoiceIndex = invoices.findIndex(i => normalizeStudentName(i.studentName) === normalizeStudentName(params.studentName!));
+  }
+  if (invoiceIndex === -1 && params.studentId) {
+    invoiceIndex = invoices.findIndex(i => i.studentId && i.studentId.toLowerCase() === params.studentId!.toLowerCase());
+  }
+  if (invoiceIndex === -1 && params.invoiceId) {
+    invoiceIndex = invoices.findIndex(i => (i.id && i.id.includes(params.invoiceId!)) || (i.studentName && i.studentName.toLowerCase().includes(params.invoiceId!.toLowerCase())));
+  }
+
   if (invoiceIndex === -1) {
-    throw new Error(`Invoice not found: ${params.invoiceId}`);
+    throw new Error(`Invoice not found: ${params.invoiceId || params.studentName || 'Unknown'}`);
   }
 
   const invoice = invoices[invoiceIndex];

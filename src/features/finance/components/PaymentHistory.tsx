@@ -95,9 +95,9 @@ export const PaymentHistory: React.FC<PaymentHistoryProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((tx) => (
+                filteredTransactions.map((tx, idx) => (
                   <tr 
-                    key={tx.id}
+                    key={`tx-hist-${tx.id || tx.paymentNumber || idx}-${idx}`}
                     onClick={() => onSelectTransaction?.(tx)}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
                   >

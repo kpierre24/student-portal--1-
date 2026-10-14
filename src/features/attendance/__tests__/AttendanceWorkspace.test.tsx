@@ -89,4 +89,18 @@ describe('AttendanceWorkspace — Attendance Operations & Policy Verification', 
     expect(screen.getAllByText('Philip the Evangelist').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Stephen the Martyr').length).toBeGreaterThan(0);
   });
+
+  it('accurately displays present students count and percentage in class day header (never exceeding enrolled student count)', () => {
+    const propsWithStats = {
+      ...defaultProps,
+      classDayStats: {
+        'day-1': { count: 1, percentage: 50 },
+      },
+    };
+    render(<AttendanceWorkspace {...propsWithStats} />);
+
+    // Header and summary bar should display "1/2" present students
+    expect(screen.getAllByText('1/2').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('(50%)').length).toBeGreaterThan(0);
+  });
 });

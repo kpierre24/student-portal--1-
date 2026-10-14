@@ -88,4 +88,31 @@ describe('attendanceService', () => {
     expect(overall.satisfactoryCount).toBe(1);
     expect(overall.atRiskCount).toBe(1);
   });
+
+  it('ensures present students count is strictly bounded by the number of enrolled students (<= 51)', () => {
+    // Generate 51 synthetic enrolled students
+    const fiftyOneStudents: StudentSummary[] = Array.from({ length: 51 }, (_, i) => ({
+      name: `Student ${i + 1}`,
+      totalDays: 1,
+      attended: i < 48 ? 1 : 0,
+      rate: i < 48 ? 100 : 0,
+      avgScore: 85,
+      levelId: 'level_1',
+      attendanceByDay: {
+        'lesson_16': { present: i < 48 }
+      }
+    }));
+
+    const mockClassDay: ClassDay = {
+      id: 'lesson_16',
+      name: 'School of the Pastors Lesson 16',
+      date: '2026-09-15',
+    };
+
+    const stats = getSessionStats(mockClassDay, fiftyOneStudents);
+    expect(stats.totalStudents).toBe(51);
+    expect(stats.presentCount).toBe(48);
+    expect(stats.presentCount).toBeLessThanOrEqual(51);
+    expect(stats.attendanceRate).toBe(Math.round((48 / 51) * 100));
+  });
 });

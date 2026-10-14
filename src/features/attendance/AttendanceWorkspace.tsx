@@ -641,6 +641,30 @@ export function AttendanceTab({
             /* Attendance Matrix View Container */
             <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
 
+              {/* Attendance Summary Bar (Present vs Total Enrollment of 51) */}
+              <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 px-4 py-2.5 text-white flex flex-wrap items-center justify-between gap-3 shadow-sm border-b border-indigo-800/40 z-10">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-black tracking-wide uppercase">Class Attendance Live Summary</span>
+                  <span className="text-[10px] text-indigo-300 font-medium hidden sm:inline">(Total Enrollment: <strong className="text-white font-bold">{uniqueStudents.length}</strong> students)</span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar max-w-full text-xs py-0.5">
+                  {effectiveClassDays.slice(-4).map(day => {
+                    const stats = classDayStats[day.id] || { count: 0, percentage: 0 };
+                    return (
+                      <div key={`summary-pill-${day.id}`} className="flex items-center gap-1.5 bg-white/10 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-white/10 shrink-0">
+                        <span className="font-extrabold text-[11px] truncate max-w-[90px]" title={day.name}>{day.name}</span>
+                        <span className="font-mono font-bold text-emerald-300">{stats.count}/{uniqueStudents.length}</span>
+                        <span className="text-[10px] font-semibold text-indigo-200">({Math.round(stats.percentage)}%)</span>
+                      </div>
+                    );
+                  })}
+                  {effectiveClassDays.length > 4 && (
+                    <span className="text-[10px] text-indigo-300 font-medium italic">+{effectiveClassDays.length - 4} more sessions</span>
+                  )}
+                </div>
+              </div>
+
               {/* Mobile Attendance Matrix Card Format (< 768px / md:hidden) */}
               <div className="md:hidden flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50/50 dark:bg-slate-950/50 custom-scrollbar">
                 {filteredAndSortedStudents.length > 0 ? (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StudentSummary } from '../types';
+import { safeStorage } from '../lib/safeStorage';
 
 export const useStudentData = () => {
   // Selected Student for Detail Modal
@@ -46,23 +47,23 @@ export const useStudentData = () => {
 
   // Synchronizers to local storage
   useEffect(() => {
-    localStorage.setItem('deletedStudentNames', JSON.stringify(deletedStudentNames));
+    safeStorage.setJSON('deletedStudentNames', deletedStudentNames);
   }, [deletedStudentNames]);
 
   useEffect(() => {
-    localStorage.setItem('studentNotes', JSON.stringify(studentNotes));
+    safeStorage.setJSON('studentNotes', studentNotes);
   }, [studentNotes]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_photos', JSON.stringify(studentPhotos));
+    safeStorage.setJSON('hteim_student_photos', studentPhotos);
   }, [studentPhotos]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_levels', JSON.stringify(studentLevels));
+    safeStorage.setJSON('hteim_student_levels', studentLevels);
   }, [studentLevels]);
 
   useEffect(() => {
-    localStorage.setItem('rubricScores', JSON.stringify(rubricScores));
+    safeStorage.setJSON('rubricScores', rubricScores);
   }, [rubricScores]);
 
   return {

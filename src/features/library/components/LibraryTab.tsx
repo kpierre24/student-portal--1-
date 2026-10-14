@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { toast } from 'sonner';
 import mammoth from 'mammoth';
 import { evaluateLesson } from '../../../lib/api/ai';
 import { logger } from '../../../lib/logger';
@@ -61,6 +62,7 @@ import { parseTextWithScriptures, extractScriptureReferences } from '../../../ut
 import { createNoteFromLibraryExcerpt } from '../../../utils/notesStorage';
 import { CurriculumHierarchyView } from './CurriculumHierarchyView';
 import { AddResourceModal } from './AddResourceModal';
+import { BulkAddResourcesModal } from './BulkAddResourcesModal';
 import { buildAcademicHierarchy } from '../services/curriculumHierarchyService';
 import { toLegacyResource, toLearningResource } from '../model';
 import { LibraryHomepage } from './LibraryHomepage';
@@ -521,6 +523,7 @@ export const LibraryTab: React.FC<LibraryTabProps> = ({
   
   // Modals
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [addResourcePlacement, setAddResourcePlacement] = useState<{ courseId?: string; moduleId?: string; lessonId?: string } | undefined>(undefined);
   const [previewResource, setPreviewResource] = useState<LibraryResource | null>(null);
   const [previewExtractedText, setPreviewExtractedText] = useState<string>('');
@@ -616,6 +619,19 @@ export const LibraryTab: React.FC<LibraryTabProps> = ({
 
     setShowUploadModal(false);
     setAddResourcePlacement(undefined);
+  };
+
+  const handleSaveBulkResources = (newResources: LibraryResource[]) => {
+    setResources(prev => {
+      const updated = [...newResources, ...prev];
+      try {
+        localStorage.setItem('schoolLibraryResources', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save bulk resources to localStorage:', err);
+      }
+      return updated;
+    });
+    toast.success(`Successfully uploaded and AI-evaluated ${newResources.length} core materials.`);
   };
 
   // Inline Edit Mode State for Direct Card Edits
@@ -1509,6 +1525,7 @@ ${resource.fullContent || 'Full lesson document content loaded for student refer
             setAddResourcePlacement(undefined);
             setShowUploadModal(true);
           }}
+          onBulkAddResources={() => setShowBulkUploadModal(true)}
           onSelectResource={(learningRes) => {
             setUniversalViewerResource(learningRes);
           }}
@@ -2299,6 +2316,16 @@ ${resource.fullContent || 'Full lesson document content loaded for student refer
           courses={courses}
           initialPlacement={addResourcePlacement}
           currentUserRole={userRole}
+          currentUserName={studentName || 'HTEIM Faculty'}
+        />
+      )}
+
+      {/* Bulk Add Resources with AI Lesson & Topic Evaluation Modal */}
+      {showBulkUploadModal && (
+        <BulkAddResourcesModal
+          isOpen={showBulkUploadModal}
+          onClose={() => setShowBulkUploadModal(false)}
+          onSaveBulkResources={handleSaveBulkResources}
           currentUserName={studentName || 'HTEIM Faculty'}
         />
       )}

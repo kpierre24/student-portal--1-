@@ -19,6 +19,7 @@ import {
 } from '../lib/tuitionSheets';
 import { displayErrorToUser } from '../lib/errorHandler';
 import { logActivity } from '../lib/auditLogger';
+import { safeStorage } from '../lib/safeStorage';
 
 interface UseGoogleSheetsSyncProps {
   activeCohort: Cohort | null;
@@ -141,21 +142,21 @@ export const useGoogleSheetsSync = ({
 
   // Local Storage Sync Effects
   useEffect(() => {
-    localStorage.setItem('sheetUrl', sheetUrl);
+    safeStorage.setItem('sheetUrl', sheetUrl);
   }, [sheetUrl]);
 
   useEffect(() => {
     if (tuitionSheetUrl) {
-      localStorage.setItem('hteim_tuition_sheet_url', tuitionSheetUrl);
+      safeStorage.setItem('hteim_tuition_sheet_url', tuitionSheetUrl);
     }
   }, [tuitionSheetUrl]);
 
   useEffect(() => {
-    localStorage.setItem('recentSheets', JSON.stringify(recentSheets));
+    safeStorage.setJSON('recentSheets', recentSheets);
   }, [recentSheets]);
 
   useEffect(() => {
-    localStorage.setItem('autoSyncInterval', autoSyncInterval.toString());
+    safeStorage.setItem('autoSyncInterval', autoSyncInterval.toString());
   }, [autoSyncInterval]);
 
   useEffect(() => {
@@ -261,15 +262,8 @@ export const useGoogleSheetsSync = ({
 
           // Check if this sheet is a tuition & fees tab
           if (isTuitionSheetTab(sheetTitle, headers)) {
-            if (manualTuitionOnly) {
-              // User instruction: "Do not pull tuition from google sheets I will manually update it"
-              return; // Skip adding tuition tab as attendance, and skip pulling tuition data into payments
-            }
-            const parsedTuition = parseTuitionSheetRows(sheetTitle, headers, rows, payments);
-            if (parsedTuition.length > 0) {
-              incomingTuitionRecords.push(...parsedTuition);
-            }
-            return; // Skip adding tuition tab as an attendance class day
+            // User instruction: "remove the syncing from the google sheet for tuition I will do the updating of tuition and fees manually"
+            return; // Skip adding tuition tab as attendance, and never pull tuition into payments
           }
 
           syncedSheetTitles.add(sheetTitle);
@@ -293,9 +287,14 @@ export const useGoogleSheetsSync = ({
       }
 
       // Filter out existing records that correspond to these synced sheets and remove any obsolete legacy days
-      const preservedRecords = records.filter(
-        r => r && r.classDay && !syncedSheetTitles.has(r.classDay) && !isObsoleteLegacyClassDay(r.classDay)
-      );
+      const preservedRecords = records.filter(r => {
+        if (!r || !r.classDay || isObsoleteLegacyClassDay(r.classDay)) return false;
+        if (syncedSheetTitles.has(r.classDay)) return false;
+        for (const title of Array.from(syncedSheetTitles)) {
+          if (isMatchingLesson(r.classDay, title)) return false;
+        }
+        return true;
+      });
 
       const parsedSheetDataByClassDay = new Map<
         string,

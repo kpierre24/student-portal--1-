@@ -25,7 +25,7 @@ import { AppUser, generateStudentUsername, UserCredential, isMatchingCredential,
 import { INITIAL_COURSES, INITIAL_ASSIGNMENTS, INITIAL_SUBMISSIONS, INITIAL_SCHEDULE, INITIAL_RESOURCES, INITIAL_PAYMENTS, INITIAL_MESSAGES } from '../data/initialPortalData';
 import { DEFAULT_FACULTY_TEACHERS } from '../components/HomeTab';
 import { DEFAULT_PRESET_MEDIA } from '../components/ClassroomMediaPlayer';
-import { CURRICULUM_CLASS_DAYS, MASTER_ENROLLED_STUDENTS, RAW_CURRICULUM_RECORDS, isObsoleteLegacyClassDay, getLessonMaxPoints, isMatchingLesson, GradingWeights, DEFAULT_GRADING_WEIGHTS } from '../data';
+import { CURRICULUM_CLASS_DAYS, MASTER_ENROLLED_STUDENTS, RAW_CURRICULUM_RECORDS, isObsoleteLegacyClassDay, getLessonMaxPoints, isMatchingLesson, getLessonNumber, GradingWeights, DEFAULT_GRADING_WEIGHTS } from '../data';
 import { DEFAULT_QUIZ_TEMPLATES } from '../data/quizTemplates';
 import { MANUAL_ALIASES, EXCLUDED_STUDENTS, isExcludedStudent, getCanonicalNamesMap, normalizeStudentName } from '../features/students/studentCanonicalization';
 import { loadAuthoritativeState as loadFromSupabase, saveAuthoritativeState as saveToSupabase } from '../services/dataSyncService';
@@ -43,6 +43,7 @@ import { trackUxEvent } from '../lib/uxTelemetry';
 import { usePWAInstall } from '../lib/pwa';
 import { getTabFromLocation } from './navigation';
 import { exportElementToPDF } from '../lib/pdfExporter';
+import { safeStorage } from '../lib/safeStorage';
 import { ThemeMode } from '../components/SettingsModal';
 import { parseAndApplyQuizCsv } from '../lib/quizCsvImporter';
 import { useGoogleSheetsSync } from '../hooks/useGoogleSheetsSync';
@@ -468,13 +469,40 @@ export function usePortalState() {
     if (currentClassDays.some(d => isObsoleteLegacyClassDay(d.id) || isObsoleteLegacyClassDay(d.name))) {
       currentClassDays = currentClassDays.filter(d => !isObsoleteLegacyClassDay(d.id) && !isObsoleteLegacyClassDay(d.name));
       setClassDays(currentClassDays);
-      localStorage.setItem('classDays', JSON.stringify(currentClassDays));
+      safeStorage.setJSON('classDays', currentClassDays);
     }
 
     if (currentRecords.some(r => isObsoleteLegacyClassDay(r.classDay))) {
       currentRecords = currentRecords.filter(r => !isObsoleteLegacyClassDay(r.classDay));
       setRecords(currentRecords);
-      localStorage.setItem('attendanceRecords', JSON.stringify(currentRecords));
+      safeStorage.setJSON('attendanceRecords', currentRecords);
+    }
+
+    // Deduplicate records to eliminate bloated duplicates in browser storage
+    const dedupedRecordsMap = new Map<string, AttendanceRecord>();
+    currentRecords.forEach(r => {
+      if (!r || !r.name || !r.classDay || isObsoleteLegacyClassDay(r.classDay) || isExcludedStudent(r.name)) return;
+      const normName = normalizeStudentName(r.name || r.studentName || '');
+      const lessonNum = getLessonNumber(r.classDay);
+      const dayKey = lessonNum !== null ? `lesson_${lessonNum}` : (r.classDay || '').toLowerCase().trim();
+      const mapKey = `${normName}:::${dayKey}`;
+      const existing = dedupedRecordsMap.get(mapKey);
+      if (!existing) {
+        dedupedRecordsMap.set(mapKey, r);
+      } else {
+        if (!existing.manualOverride && r.manualOverride) {
+          dedupedRecordsMap.set(mapKey, r);
+        } else if (!existing.present && (r.present || (r.status || '').toLowerCase() === 'present')) {
+          dedupedRecordsMap.set(mapKey, { ...r, ...existing, present: true, status: 'present' });
+        } else if (!existing.score && r.score) {
+          dedupedRecordsMap.set(mapKey, { ...existing, score: r.score });
+        }
+      }
+    });
+    if (dedupedRecordsMap.size > 0 && dedupedRecordsMap.size < currentRecords.length) {
+      currentRecords = Array.from(dedupedRecordsMap.values());
+      setRecords(currentRecords);
+      safeStorage.setJSON('attendanceRecords', currentRecords);
     }
   }, []);
 
@@ -487,7 +515,7 @@ export function usePortalState() {
   });
 
   useEffect(() => {
-    localStorage.setItem('deletedClassDayIds', JSON.stringify(deletedClassDayIds));
+    safeStorage.setJSON('deletedClassDayIds', deletedClassDayIds);
   }, [deletedClassDayIds]);
 
   // Search & Filters
@@ -561,11 +589,11 @@ export function usePortalState() {
   });
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_enrollment_statuses', JSON.stringify(studentEnrollmentStatuses));
+    safeStorage.setJSON('hteim_student_enrollment_statuses', studentEnrollmentStatuses);
   }, [studentEnrollmentStatuses]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_dropout_notes', JSON.stringify(studentDropoutNotes));
+    safeStorage.setJSON('hteim_student_dropout_notes', studentDropoutNotes);
   }, [studentDropoutNotes]);
 
   const [selectedReportLevel, setSelectedReportLevel] = useState<string>('all');
@@ -582,22 +610,22 @@ export function usePortalState() {
   // Cohort state
   const [cohorts, setCohorts] = useState<Cohort[]>(() => {
     try {
-      const saved = localStorage.getItem('hteim_cohorts');
+      const saved = safeStorage.getItem('hteim_cohorts');
       if (saved) return JSON.parse(saved);
     } catch (e) {}
     return DEFAULT_COHORTS;
   });
 
   const [activeCohortId, setActiveCohortId] = useState<string>(() => {
-    return localStorage.getItem('hteim_active_cohort_id') || 'cohort_2026';
+    return safeStorage.getItem('hteim_active_cohort_id') || 'cohort_2026';
   });
 
   useEffect(() => {
-    localStorage.setItem('hteim_cohorts', JSON.stringify(cohorts));
+    safeStorage.setJSON('hteim_cohorts', cohorts);
   }, [cohorts]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_active_cohort_id', activeCohortId);
+    safeStorage.setItem('hteim_active_cohort_id', activeCohortId);
   }, [activeCohortId]);
 
   const activeCohort = useMemo(() => {
@@ -720,59 +748,59 @@ export function usePortalState() {
 
   // ─── Local Storage & Cloud Auto-Sync Engine ────────────────────────────────
   useEffect(() => {
-    localStorage.setItem('hteim_custom_assignments', JSON.stringify(customAssignments));
+    safeStorage.setJSON('hteim_custom_assignments', customAssignments);
   }, [customAssignments]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_assignment_submissions', JSON.stringify(submissions));
+    safeStorage.setJSON('hteim_assignment_submissions', submissions);
   }, [submissions]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_payments', JSON.stringify(payments));
+    safeStorage.setJSON('hteim_student_payments', payments);
   }, [payments]);
 
   useEffect(() => {
-    localStorage.setItem('attendanceRecords', JSON.stringify(records));
+    safeStorage.setJSON('attendanceRecords', records);
   }, [records]);
 
   useEffect(() => {
-    localStorage.setItem('classDays', JSON.stringify(classDays));
+    safeStorage.setJSON('classDays', classDays);
   }, [classDays]);
 
   useEffect(() => {
-    localStorage.setItem('studentNotes', JSON.stringify(studentNotes));
+    safeStorage.setJSON('studentNotes', studentNotes);
   }, [studentNotes]);
 
   useEffect(() => {
-    localStorage.setItem('excusedAbsences', JSON.stringify(excusedAbsences));
+    safeStorage.setJSON('excusedAbsences', excusedAbsences);
   }, [excusedAbsences]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_photos', JSON.stringify(studentPhotos));
+    safeStorage.setJSON('hteim_student_photos', studentPhotos);
   }, [studentPhotos]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_student_levels', JSON.stringify(studentLevels));
+    safeStorage.setJSON('hteim_student_levels', studentLevels);
   }, [studentLevels]);
 
   useEffect(() => {
-    localStorage.setItem('deletedStudentNames', JSON.stringify(deletedStudentNames));
+    safeStorage.setJSON('deletedStudentNames', deletedStudentNames);
   }, [deletedStudentNames]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_library_resources', JSON.stringify(libraryResources));
+    safeStorage.setJSON('hteim_library_resources', libraryResources);
   }, [libraryResources]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_classroom_media', JSON.stringify(classroomMedia));
+    safeStorage.setJSON('hteim_classroom_media', classroomMedia);
   }, [classroomMedia]);
 
   useEffect(() => {
-    localStorage.setItem('rubricScores', JSON.stringify(rubricScores));
+    safeStorage.setJSON('rubricScores', rubricScores);
   }, [rubricScores]);
 
   useEffect(() => {
-    localStorage.setItem('hteim_grading_weights', JSON.stringify(gradingWeights));
+    safeStorage.setJSON('hteim_grading_weights', gradingWeights);
   }, [gradingWeights]);
 
   // Track when initial hydration from cloud has completed to prevent premature overwrites
@@ -844,6 +872,7 @@ export function usePortalState() {
 
   // Master debounced cloud auto-persister: any adjustment (quizzes, students, media, etc.) syncs to Supabase
   useEffect(() => {
+    console.log('Auto-sync effect triggered');
     if (!isInitialLoadDoneRef.current) return;
 
     const activeEmail = appUser?.email || user?.email;
@@ -1804,7 +1833,11 @@ export function usePortalState() {
 
           const rec = studentRecords.find(r => {
             if (!r || !r.classDay) return false;
-            return isMatchingLesson(r.classDay, day.id) || (day.name && isMatchingLesson(r.classDay, day.name));
+            const match = r.classDay === day.id || r.classDay === day.name || isMatchingLesson(r.classDay, day.id) || (day.name && isMatchingLesson(r.classDay, day.name));
+            return match && (r.manualOverride === true || r.present === true || (r.status || '').toLowerCase() === 'present');
+          }) || studentRecords.find(r => {
+            if (!r || !r.classDay) return false;
+            return r.classDay === day.id || r.classDay === day.name || isMatchingLesson(r.classDay, day.id) || (day.name && isMatchingLesson(r.classDay, day.name));
           });
 
           if (rec) {
@@ -1942,16 +1975,27 @@ export function usePortalState() {
 
   const classDayStats = useMemo(() => {
     const stats: Record<string, { count: number; percentage: number }> = {};
+    const totalStds = uniqueStudents.length || 1;
+
     effectiveClassDays.forEach(day => {
-      const dayRecs = records.filter(r => 
-        (r.classDay === day.id || r.classDay === day.name || isMatchingLesson(r.classDay, day.id) || (day.name && isMatchingLesson(r.classDay, day.name))) && 
-        (r.present === true || (r.status || '').toLowerCase() === 'present')
-      );
-      const totalStds = uniqueStudents.length || 1;
-      stats[day.id] = { count: dayRecs.length, percentage: Math.round((dayRecs.length / totalStds) * 100) };
+      // Accurately count unique enrolled students present for this class day
+      let presentCount = 0;
+      uniqueStudents.forEach(student => {
+        const att = student.attendanceByDay?.[day.id] || 
+                    (day.name ? student.attendanceByDay?.[day.name] : undefined);
+        if (att?.present === true) {
+          presentCount++;
+        }
+      });
+
+      // Present count can never exceed the total number of students (e.g., 51 or less)
+      const safeCount = Math.min(totalStds, Math.max(0, presentCount));
+      const percentage = Math.min(100, Math.round((safeCount / totalStds) * 100));
+
+      stats[day.id] = { count: safeCount, percentage };
     });
     return stats;
-  }, [effectiveClassDays, records, uniqueStudents.length]);
+  }, [effectiveClassDays, uniqueStudents]);
 
   const trendChartData = useMemo(() => {
     return effectiveClassDays.map(day => {
@@ -2566,13 +2610,33 @@ export function usePortalState() {
     },
     handleToggleStudentAttendance: (name: string, classDayId: string, status: string) => {
       setRecords(prev => {
-        const idx = prev.findIndex(r => r.name === name && r.classDay === classDayId);
+        const isPresent = status === 'present';
+        const normName = normalizeStudentName(name);
+        const idx = prev.findIndex(r => {
+          if (!r) return false;
+          const rName = r.name || r.studentName || '';
+          return (rName === name || normalizeStudentName(rName) === normName) &&
+                 (r.classDay === classDayId || isMatchingLesson(r.classDay, classDayId));
+        });
         if (idx >= 0) {
           const copy = [...prev];
-          copy[idx] = { ...copy[idx], status };
+          copy[idx] = { 
+            ...copy[idx], 
+            status, 
+            present: isPresent, 
+            manualOverride: true 
+          };
           return copy;
         }
-        return [...prev, { name, classDay: classDayId, status, score: 'P' }];
+        return [...prev, { 
+          name, 
+          studentName: name, 
+          classDay: classDayId, 
+          status, 
+          present: isPresent, 
+          score: isPresent ? 'P' : '', 
+          manualOverride: true 
+        }];
       });
     },
     handleToggleExcusedAbsence: (name: string, classDayId: string) => {
@@ -2609,10 +2673,10 @@ export function usePortalState() {
       const studentId = targetStudent ? (targetStudent.studentId || targetStudent.id || identifier) : identifier;
       const normName = normalizeStudentName(studentName);
 
-      // 1. Permanently record in deletedStudentNames & update localStorage
+      // 1. Permanently record in deletedStudentNames & update storage
       setDeletedStudentNames(prev => {
         const next = Array.from(new Set([...prev, studentName, normName, studentId, identifier]));
-        localStorage.setItem('deletedStudentNames', JSON.stringify(next));
+        safeStorage.setJSON('deletedStudentNames', next);
         return next;
       });
 
@@ -2624,7 +2688,7 @@ export function usePortalState() {
           const rId = r.studentId || r.id;
           return rNorm !== normName && rName !== studentName && rId !== studentId && rId !== identifier;
         });
-        localStorage.setItem('attendanceRecords', JSON.stringify(updated));
+        safeStorage.setJSON('attendanceRecords', updated);
         return updated;
       });
 
@@ -2636,8 +2700,8 @@ export function usePortalState() {
           const pId = p.studentId || p.id;
           return pNorm !== normName && pName !== studentName && pId !== studentId && pId !== identifier;
         });
-        localStorage.setItem('hteim_student_payments', JSON.stringify(updated));
-        localStorage.setItem('hteim_payment_records', JSON.stringify(updated));
+        safeStorage.setJSON('hteim_student_payments', updated);
+        safeStorage.setJSON('hteim_payment_records', updated);
         return updated;
       });
 

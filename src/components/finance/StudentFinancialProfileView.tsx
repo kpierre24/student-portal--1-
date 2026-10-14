@@ -304,8 +304,8 @@ export const StudentFinancialProfileView: React.FC<StudentFinancialProfileViewPr
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {profile.invoices.map(inv => (
-                  <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
+                {profile.invoices.map((inv, idx) => (
+                  <tr key={`s-inv-${inv.id || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
                     <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
                       {inv.id}
                     </td>
@@ -410,8 +410,8 @@ export const StudentFinancialProfileView: React.FC<StudentFinancialProfileViewPr
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {profile.transactions.map(tx => (
-                  <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
+                {profile.transactions.map((tx, idx) => (
+                  <tr key={`s-tx-${tx.id || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
                     <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
                       {tx.id}
                     </td>
@@ -492,8 +492,8 @@ export const StudentFinancialProfileView: React.FC<StudentFinancialProfileViewPr
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {profile.adjustments.map(adj => (
-                  <tr key={adj.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
+                {profile.adjustments.map((adj, idx) => (
+                  <tr key={`s-adj-${adj.id || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors font-medium">
                     <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">
                       {adj.id}
                     </td>

@@ -18,6 +18,7 @@ import { MASTER_ENROLLED_STUDENTS } from '../data/curriculum';
 import { extractSpreadsheetId, fetchSpreadsheetMetadata, fetchMultipleRanges } from './sheets';
 import { logger } from './logger';
 import { getInvoices, saveInvoices, getTransactions, saveTransactions, getReceipts, saveReceipts, bootstrapFromPaymentRecords } from './financialWorkflow';
+import { safeStorage } from './safeStorage';
 
 export interface ParsedTuitionResult {
   sheetTitle: string;
@@ -910,7 +911,7 @@ export function mergeTuitionRecords(
  * Saves tuition records to localStorage and keeps invoices/transactions synchronized
  */
 export function persistTuitionRecords(records: PaymentRecord[]): void {
-  localStorage.setItem('hteim_student_payments', JSON.stringify(records));
+  safeStorage.setJSON('hteim_student_payments', records);
   
   // Re-bootstrap and synchronize authoritative financial invoices and ledger
   const bootstrapped = bootstrapFromPaymentRecords(records);

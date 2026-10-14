@@ -80,8 +80,8 @@ export const InvoiceList: React.FC<InvoiceListProps> = ({ invoices }) => {
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-        {invoices.map((inv) => (
-          <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+        {invoices.map((inv, idx) => (
+          <tr key={`inv-list-${inv.id || inv.invoiceNumber || idx}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
             <td className="px-6 py-4 whitespace-nowrap">
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-gray-900 dark:text-white uppercase">{inv.invoiceNumber}</span>

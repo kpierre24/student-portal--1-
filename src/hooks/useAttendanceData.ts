@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ClassDay, AttendanceRecord } from '../types';
 import { CURRICULUM_CLASS_DAYS, RAW_CURRICULUM_RECORDS, isObsoleteLegacyClassDay } from '../data';
 import { isExcludedStudent } from '../lib/studentNames';
+import { safeStorage } from '../lib/safeStorage';
 
 export const useAttendanceData = () => {
   const defaultPermanentClassDays: ClassDay[] = useMemo(() => CURRICULUM_CLASS_DAYS, []);
@@ -60,13 +61,13 @@ export const useAttendanceData = () => {
     if (currentClassDays.some(d => isObsoleteLegacyClassDay(d.id) || isObsoleteLegacyClassDay(d.name))) {
       currentClassDays = currentClassDays.filter(d => !isObsoleteLegacyClassDay(d.id) && !isObsoleteLegacyClassDay(d.name));
       setClassDays(currentClassDays);
-      localStorage.setItem('classDays', JSON.stringify(currentClassDays));
+      safeStorage.setJSON('classDays', currentClassDays);
     }
 
     if (currentRecords.some(r => isObsoleteLegacyClassDay(r.classDay))) {
       currentRecords = currentRecords.filter(r => !isObsoleteLegacyClassDay(r.classDay));
       setRecords(currentRecords);
-      localStorage.setItem('attendanceRecords', JSON.stringify(currentRecords));
+      safeStorage.setJSON('attendanceRecords', currentRecords);
     }
   }, []);
 
@@ -81,7 +82,7 @@ export const useAttendanceData = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('deletedClassDayIds', JSON.stringify(deletedClassDayIds));
+    safeStorage.setJSON('deletedClassDayIds', deletedClassDayIds);
   }, [deletedClassDayIds]);
 
   // Custom Student Excused Absences
@@ -91,7 +92,7 @@ export const useAttendanceData = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('excusedAbsences', JSON.stringify(excusedAbsences));
+    safeStorage.setJSON('excusedAbsences', excusedAbsences);
   }, [excusedAbsences]);
 
   // Custom Thresholds (At Risk & Satisfactory)
@@ -106,11 +107,11 @@ export const useAttendanceData = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('atRiskThreshold', atRiskThreshold.toString());
+    safeStorage.setItem('atRiskThreshold', atRiskThreshold.toString());
   }, [atRiskThreshold]);
 
   useEffect(() => {
-    localStorage.setItem('satisfactoryThreshold', satisfactoryThreshold.toString());
+    safeStorage.setItem('satisfactoryThreshold', satisfactoryThreshold.toString());
   }, [satisfactoryThreshold]);
 
   return {

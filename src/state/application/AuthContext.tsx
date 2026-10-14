@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { AppUser, UserRole } from '../../lib/userAuth';
 import { Permission, roleHasPermission } from '../../types/rbac';
 
@@ -66,9 +66,7 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     return roleHasPermission(currentUser.role, permission);
   }, [currentUser]);
 
-  return (
-    <AuthContext.Provider
-      value={{
+  const contextValue = useMemo(() => ({
         currentUser,
         setCurrentUser,
         isAuthenticated: !!currentUser,
@@ -76,8 +74,10 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
         hasPermission,
         login,
         logout,
-      }}
-    >
+      }), [currentUser, hasPermission, login, logout]);
+
+  return (
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

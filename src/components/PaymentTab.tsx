@@ -45,7 +45,10 @@ import {
   List,
   Heart,
   Calendar,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Edit2,
+  Check,
+  PlusCircle
 } from 'lucide-react';
 import { PaymentRecord, Invoice, PaymentTransaction, Receipt, StudentInstallmentPlan, InstallmentMilestone, SponsorshipDonation } from '../types';
 import { getInvoices, saveInvoices, getTransactions, saveTransactions, getReceipts, saveReceipts, bootstrapFromPaymentRecords, recordPaymentTransaction } from '../lib/financialWorkflow';
@@ -61,14 +64,15 @@ import { FinancialReportsModal } from './finance/FinancialReportsModal';
 import { PrintableReceiptModal } from './finance/PrintableReceiptModal';
 import { RecordTransactionModal } from './finance/RecordTransactionModal';
 import { FinancialAdjustmentModal } from './finance/FinancialAdjustmentModal';
-import { GoogleSheetsTuitionModal } from './finance/GoogleSheetsTuitionModal';
-import { fetchTuitionSpreadsheet, mergeTuitionRecords, persistTuitionRecords } from '../lib/tuitionSheets';
+import { persistTuitionRecords } from '../lib/tuitionSheets';
 import { uploadToSupabaseStorage } from '../lib/supabaseClient';
 import { EmptyState } from './UXPrimitives';
 import { Modal } from './Modal';
 import { usePortalRouter } from '../lib/usePortalRouter';
 import { isDemoPayment } from '../data/guards';
 import { MANUAL_ALIASES } from '../features/students/studentCanonicalization';
+import { normalizeStudentName } from '../lib/studentNames';
+import { safeStorage } from '../lib/safeStorage';
 
 interface PaymentTabProps {
   availableStudents: { name: string; email?: string }[];
@@ -114,8 +118,10 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
 }) => {
   const isStudent = userRole === 'student';
 
-  const [showSheetSyncModal, setShowSheetSyncModal] = useState(false);
-  const [isSyncingDirectly, setIsSyncingDirectly] = useState(false);
+  // Fast manual inline editing state
+  const [inlineEditingInvId, setInlineEditingInvId] = useState<string | null>(null);
+  const [inlineTuitionVal, setInlineTuitionVal] = useState<number>(1200);
+  const [inlineAmountPaidVal, setInlineAmountPaidVal] = useState<number>(0);
 
   // If not admin and not student, block view
   if (!isAdmin && !isStudent) {
@@ -137,14 +143,14 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
 
   // State Management
   const [localPayments, setLocalPayments] = useState<PaymentRecord[]>(() => {
-    const saved = localStorage.getItem('hteim_student_payments');
+    const saved = safeStorage.getItem('hteim_student_payments');
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
         // Self-heal: If it contains old mock template data, reset to real student sheet data
         const hasOldMock = parsed.some((p: any) => p.id === 'pay-101' || p.studentName === 'Sister Maria Santos');
         if (hasOldMock) {
-          localStorage.setItem('hteim_student_payments', JSON.stringify(INITIAL_PAYMENTS));
+          safeStorage.setJSON('hteim_student_payments', INITIAL_PAYMENTS);
           return INITIAL_PAYMENTS;
         }
 
@@ -178,7 +184,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
         parsed = cleaned;
 
         if (modified) {
-          localStorage.setItem('hteim_student_payments', JSON.stringify(parsed));
+          safeStorage.setJSON('hteim_student_payments', parsed);
         }
 
         return parsed;
@@ -216,10 +222,17 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
   // Synchronize changes back to payments so that the rest of the application remains synchronized
   const syncToPayments = (currentInvoices: Invoice[], currentTransactions: PaymentTransaction[]) => {
     const updatedPayments = payments.map((p) => {
-      const invoice = currentInvoices.find((inv) => inv.studentName === p.studentName || inv.studentId === p.studentId);
+      const pName = normalizeStudentName(p.studentName || '');
+      const invoice = currentInvoices.find((inv) => 
+        (inv.studentName && normalizeStudentName(inv.studentName) === pName) || 
+        (inv.studentId && p.studentId && inv.studentId.toLowerCase() === p.studentId.toLowerCase())
+      );
       if (invoice) {
-        const studentTxs = currentTransactions.filter((t) => t.studentName === p.studentName);
-        const lastTx = studentTxs.length > 0 ? studentTxs[studentTxs.length - 1] : null;
+        const studentTxs = currentTransactions.filter((t) => 
+          (t.studentName && normalizeStudentName(t.studentName) === pName) ||
+          (t.studentId && p.studentId && t.studentId.toLowerCase() === p.studentId.toLowerCase())
+        );
+        const lastTx = studentTxs.length > 0 ? studentTxs[0] : null;
 
         return {
           ...p,
@@ -237,6 +250,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       return p;
     });
     setPayments(updatedPayments);
+    persistTuitionRecords(updatedPayments);
   };
 
   // State synchronization when parents update payments
@@ -258,6 +272,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
 
   const [showRecordCustomPaymentModal, setShowRecordCustomPaymentModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
 
   // Installment Plans & Sponsorship states
   const [showInstallmentModal, setShowInstallmentModal] = useState(false);
@@ -279,56 +294,76 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
     }
   });
 
-  const handleTriggerTuitionSync = async (targetUrl?: string) => {
-    const urlToUse = targetUrl || tuitionSheetUrl || mainSheetUrl || localStorage.getItem('sheetUrl') || '';
-    if (!urlToUse) {
-      toast.error('Please configure a Google Sheets URL first.');
-      setShowSheetSyncModal(true);
-      return;
+  const handleStartInlineEdit = (inv: Invoice) => {
+    setInlineEditingInvId(inv.id);
+    setInlineTuitionVal(inv.totalTuition || 1200);
+    setInlineAmountPaidVal(inv.amountPaid || 0);
+  };
+
+  const handleCancelInlineEdit = () => {
+    setInlineEditingInvId(null);
+  };
+
+  const handleSaveInlineEdit = (inv: Invoice) => {
+    const netTuition = Math.max(0, inlineTuitionVal - (inv.discounts || 0) - (inv.scholarships || 0));
+    const finalPaid = Math.max(0, inlineAmountPaidVal);
+    const outstandingBalance = Math.max(0, netTuition - finalPaid);
+    const calculatedStatus: Invoice['status'] = outstandingBalance <= 0 ? 'Paid' : finalPaid > 0 ? 'Partially Paid' : 'Unpaid';
+
+    let updatedTxs = [...transactions];
+    let updatedReceipts = [...receipts];
+    const diff = finalPaid - (inv.amountPaid || 0);
+    if (diff > 0) {
+      const { transaction: newTx, receipt: newReceipt } = recordPaymentTransaction({
+        invoiceId: inv.id,
+        amount: diff,
+        paymentMethod: 'Cash / Manual',
+        paymentDate: new Date().toISOString().slice(0, 10),
+        notes: `Manual inline adjustment: Paid amount updated to $${finalPaid}`,
+        recordedBy: userRole === 'admin' ? 'Administrator' : currentStudentName || 'Staff User',
+      });
+      updatedTxs = [newTx, ...transactions.filter(t => t.id !== newTx.id)];
+      updatedReceipts = [newReceipt, ...receipts.filter(r => r.id !== newReceipt.id)];
+      setTransactions(updatedTxs);
+      saveTransactions(updatedTxs);
+      setReceipts(updatedReceipts);
+      saveReceipts(updatedReceipts);
     }
 
-    setIsSyncingDirectly(true);
-    try {
-      if (onSyncTuitionSheet) {
-        const res = await onSyncTuitionSheet(urlToUse);
-        if (res) {
-          toast.success(`Successfully pulled ${res.totalStudents || res.records?.length || 0} student tuition accounts from Google Sheets.`);
-          logActivity({
-            action: 'RECORD_PAYMENT',
-            actionCategory: 'Payment Entry',
-            actionTitle: 'Google Sheets Tuition Sync',
-            details: `Pulled ${res.totalStudents || 0} student records ($${(res.totalTuitionBilled || 0).toLocaleString()} billed, $${(res.totalAmountCollected || 0).toLocaleString()} collected) from Google Sheet`,
-          });
-        }
-      } else {
-        const result = await fetchTuitionSpreadsheet(urlToUse, null, payments);
-        const merged = mergeTuitionRecords(payments, result.records, 'manual');
-        setPayments(merged);
-        persistTuitionRecords(merged);
-        const boot = bootstrapFromPaymentRecords(merged);
-        setInvoices(boot.invoices);
-        if (boot.transactions.length > 0) setTransactions(boot.transactions);
-        if (boot.receipts.length > 0) setReceipts(boot.receipts);
-        toast.success(`Successfully pulled ${result.totalStudents} student tuition accounts from Google Sheets.`);
-        logActivity({
-          action: 'RECORD_PAYMENT',
-          actionCategory: 'Payment Entry',
-          actionTitle: 'Google Sheets Tuition Sync',
-          details: `Pulled ${result.totalStudents} student records from Google Sheet (${result.sheetTitle})`,
-        });
+    const updatedInvoices = invoices.map(i => {
+      if (i.id === inv.id) {
+        return {
+          ...i,
+          totalTuition: inlineTuitionVal,
+          netTuition,
+          amountPaid: finalPaid,
+          outstandingBalance,
+          status: calculatedStatus,
+        };
       }
-    } catch (err: any) {
-      const msg = err?.message || 'Failed to pull tuition data from Google Sheets.';
-      toast.error(msg);
-    } finally {
-      setIsSyncingDirectly(false);
-    }
+      return i;
+    });
+
+    setInvoices(updatedInvoices);
+    saveInvoices(updatedInvoices);
+    syncToPayments(updatedInvoices, updatedTxs);
+    setInlineEditingInvId(null);
+    toast.success(`Updated tuition and fees for ${inv.studentName}.`);
+
+    logActivity({
+      actor: userRole === 'admin' ? 'Administrator' : currentStudentName || 'Staff User',
+      role: 'admin',
+      actionCategory: 'Payment Entry',
+      actionTitle: 'Manual Tuition Updated',
+      details: `Manual inline edit for ${inv.studentName}: Tuition set to $${inlineTuitionVal}, Paid set to $${finalPaid}, Balance $${outstandingBalance}`,
+      targetStudent: inv.studentName,
+    });
   };
 
   const handleSaveInstallmentPlan = (plan: StudentInstallmentPlan) => {
     const updated = [...installmentPlans.filter(p => p.id !== plan.id && p.studentName !== plan.studentName), plan];
     setInstallmentPlans(updated);
-    localStorage.setItem('hteim_installment_plans', JSON.stringify(updated));
+    safeStorage.setJSON('hteim_installment_plans', updated);
   };
 
   const handleRecordMilestonePayment = (studentName: string, milestone: InstallmentMilestone) => {
@@ -357,7 +392,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       return plan;
     });
     setInstallmentPlans(updatedPlans);
-    localStorage.setItem('hteim_installment_plans', JSON.stringify(updatedPlans));
+    safeStorage.setJSON('hteim_installment_plans', updatedPlans);
 
     // 2. Update student payment ledger
     setPayments(prev => prev.map(p => {
@@ -380,7 +415,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
   const handleGrantScholarship = (donation: SponsorshipDonation) => {
     const updatedDonations = [donation, ...sponsorshipDonations];
     setSponsorshipDonations(updatedDonations);
-    localStorage.setItem('hteim_sponsorship_donations', JSON.stringify(updatedDonations));
+    safeStorage.setJSON('hteim_sponsorship_donations', updatedDonations);
 
     if (donation.recipientStudentName !== 'General Ministry Scholarship Fund') {
       setPayments(prev => prev.map(p => {
@@ -718,9 +753,9 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
     return [];
   });
 
-  // Sync removed students with localStorage
+  // Sync removed students with storage
   useEffect(() => {
-    localStorage.setItem('hteim_removed_payment_students', JSON.stringify(removedStudentRecords));
+    safeStorage.setJSON('hteim_removed_payment_students', removedStudentRecords);
   }, [removedStudentRecords]);
 
   const handleUpdatePaymentPhone = (studentId: string, phone: string) => {
@@ -782,11 +817,35 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       removedBy: actorName
     };
 
-    setRemovedStudentRecords(prev => [removedEntry, ...prev.filter(r => r.record.id !== studentToRemove.id)]);
-    setPayments(prev => prev.filter(p => p.id !== studentToRemove.id && p.studentId !== studentToRemove.studentId && p.studentName !== studentToRemove.studentName));
-    setInvoices(prev => prev.filter(inv => inv.id !== studentToRemove.id && inv.studentId !== studentToRemove.studentId && inv.studentName !== studentToRemove.studentName));
-    setTransactions(prev => prev.filter(tx => tx.studentId !== studentToRemove.studentId && tx.studentName !== studentToRemove.studentName));
-    setReceipts(prev => prev.filter(rcpt => rcpt.studentId !== studentToRemove.studentId && rcpt.studentName !== studentToRemove.studentName));
+    setRemovedStudentRecords(prev => {
+      const next = [removedEntry, ...prev.filter(r => r.record.id !== studentToRemove.id)];
+      safeStorage.setJSON('hteim_removed_payment_students', next);
+      return next;
+    });
+
+    setPayments(prev => {
+      const next = prev.filter(p => p.id !== studentToRemove.id && p.studentId !== studentToRemove.studentId && p.studentName !== studentToRemove.studentName);
+      safeStorage.setJSON('hteim_student_payments', next);
+      return next;
+    });
+
+    setInvoices(prev => {
+      const next = prev.filter(inv => inv.id !== studentToRemove.id && inv.studentId !== studentToRemove.studentId && inv.studentName !== studentToRemove.studentName);
+      saveInvoices(next);
+      return next;
+    });
+
+    setTransactions(prev => {
+      const next = prev.filter(tx => tx.studentId !== studentToRemove.studentId && tx.studentName !== studentToRemove.studentName);
+      saveTransactions(next);
+      return next;
+    });
+
+    setReceipts(prev => {
+      const next = prev.filter(rcpt => rcpt.studentId !== studentToRemove.studentId && rcpt.studentName !== studentToRemove.studentName);
+      saveReceipts(next);
+      return next;
+    });
 
     // Synchronize removal across the app (attendance records, student directory, etc.)
     if (onDeleteStudent && studentToRemove.studentName) {
@@ -819,12 +878,25 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
   };
 
   const handleRestoreRemovedStudent = (entryToRestore: { record: PaymentRecord; removedAt: string; reason: string; removedBy: string }) => {
-    setPayments(prev => [entryToRestore.record, ...prev.filter(p => p.id !== entryToRestore.record.id)]);
-    setRemovedStudentRecords(prev => prev.filter(r => r.record.id !== entryToRestore.record.id));
+    setPayments(prev => {
+      const next = [entryToRestore.record, ...prev.filter(p => p.id !== entryToRestore.record.id)];
+      safeStorage.setJSON('hteim_student_payments', next);
+      return next;
+    });
 
-    const restoredInvs = getInvoices([entryToRestore.record]);
+    setRemovedStudentRecords(prev => {
+      const next = prev.filter(r => r.record.id !== entryToRestore.record.id);
+      safeStorage.setJSON('hteim_removed_payment_students', next);
+      return next;
+    });
+
+    const restoredInvs = bootstrapFromPaymentRecords([entryToRestore.record]).invoices;
     if (restoredInvs.length > 0) {
-      setInvoices(prev => [restoredInvs[0], ...prev.filter(i => i.id !== restoredInvs[0].id && i.studentId !== restoredInvs[0].studentId)]);
+      setInvoices(prev => {
+        const next = [restoredInvs[0], ...prev.filter(i => i.id !== restoredInvs[0].id && i.studentId !== restoredInvs[0].studentId)];
+        saveInvoices(next);
+        return next;
+      });
     }
 
     if (onRestoreStudent && entryToRestore.record.studentName) {
@@ -843,9 +915,9 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
     toast.success(`Restored ${entryToRestore.record.studentName} back to tuition ledger and school roster.`);
   };
 
-  // Sync with localStorage
+  // Sync with storage
   useEffect(() => {
-    localStorage.setItem('hteim_student_payments', JSON.stringify(payments));
+    safeStorage.setJSON('hteim_student_payments', payments);
   }, [payments]);
 
   // Ensure any newly added unique students are included in payments ledger (ignoring removed/archived students)
@@ -1189,9 +1261,64 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
     const added = Number(paymentAmountInput) || 0;
     const newPaid = Math.min(selectedPaymentForModal.totalTuition, selectedPaymentForModal.amountPaid + added);
     const newStatus: PaymentRecord['status'] = newPaid >= selectedPaymentForModal.totalTuition ? 'Paid In Full' : 'Partial';
+    const sNameNorm = normalizeStudentName(selectedPaymentForModal.studentName || '');
 
-    setPayments(prev => prev.map(p => {
-      if (p.id === selectedPaymentForModal.id) {
+    // 1. Find matching invoice
+    const matchingInv = invoices.find(inv => 
+      inv.id === selectedPaymentForModal.id || 
+      (inv.studentName && normalizeStudentName(inv.studentName) === sNameNorm) || 
+      (inv.studentId && selectedPaymentForModal.studentId && inv.studentId.toLowerCase() === selectedPaymentForModal.studentId.toLowerCase())
+    );
+
+    // 2. Record Transaction & Receipt
+    let updatedTxs = [...transactions];
+    let updatedReceipts = [...receipts];
+    if (added > 0 && matchingInv) {
+      try {
+        const { transaction: newTx, receipt: newReceipt } = recordPaymentTransaction({
+          invoiceId: matchingInv.id,
+          studentName: selectedPaymentForModal.studentName,
+          studentId: selectedPaymentForModal.studentId,
+          amount: added,
+          paymentMethod: paymentMethodInput,
+          paymentDate: new Date().toISOString().split('T')[0],
+          notes: paymentNotesInput || 'Tuition payment logged',
+          recordedBy: userRole === 'admin' ? 'Administrator' : currentStudentName || 'Staff User',
+        });
+        updatedTxs = [newTx, ...transactions.filter(t => t.id !== newTx.id)];
+        updatedReceipts = [newReceipt, ...receipts.filter(r => r.id !== newReceipt.id)];
+        setTransactions(updatedTxs);
+        saveTransactions(updatedTxs);
+        setReceipts(updatedReceipts);
+        saveReceipts(updatedReceipts);
+      } catch (err) {
+        console.error('Error logging payment transaction', err);
+      }
+    }
+
+    // 3. Update Invoices
+    const updatedInvoices = invoices.map(inv => {
+      if (inv.id === selectedPaymentForModal.id || 
+          (inv.studentName && normalizeStudentName(inv.studentName) === sNameNorm) ||
+          (inv.studentId && selectedPaymentForModal.studentId && inv.studentId.toLowerCase() === selectedPaymentForModal.studentId.toLowerCase())) {
+        const net = Math.max(0, (inv.totalTuition || selectedPaymentForModal.totalTuition) - (inv.discounts || 0) - (inv.scholarships || 0));
+        const finalBal = Math.max(0, net - newPaid);
+        return {
+          ...inv,
+          amountPaid: newPaid,
+          outstandingBalance: finalBal,
+          status: (finalBal <= 0 ? 'Paid' : newPaid > 0 ? 'Partially Paid' : 'Unpaid') as Invoice['status'],
+          notes: paymentNotesInput ? `${inv.notes ? inv.notes + ' | ' : ''}${paymentNotesInput}` : inv.notes,
+        };
+      }
+      return inv;
+    });
+    setInvoices(updatedInvoices);
+    saveInvoices(updatedInvoices);
+
+    // 4. Update Payments
+    const updatedPayments = payments.map(p => {
+      if (p.id === selectedPaymentForModal.id || (p.studentName && normalizeStudentName(p.studentName) === sNameNorm)) {
         return {
           ...p,
           amountPaid: newPaid,
@@ -1204,7 +1331,9 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
         };
       }
       return p;
-    }));
+    });
+    setPayments(updatedPayments);
+    persistTuitionRecords(updatedPayments);
 
     logActivity({
       actor: userRole === 'admin' ? 'Administrator' : currentStudentName || 'Staff User',
@@ -1215,6 +1344,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       targetStudent: selectedPaymentForModal.studentName
     });
 
+    toast.success(`Payment of $${added} saved for ${selectedPaymentForModal.studentName}. Total paid: $${newPaid}`);
     setShowRecordPaymentModal(false);
     setSelectedPaymentForModal(null);
     navigate({ action: undefined, id: undefined });
@@ -1239,7 +1369,27 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       notes: 'New student enrollment tuition agreement logged.'
     };
 
-    setPayments(prev => [newRecord, ...prev]);
+    const bootstrapped = bootstrapFromPaymentRecords([newRecord]);
+    const newInv = bootstrapped.invoices[0];
+    if (newInv) {
+      const updatedInvs = [newInv, ...invoices];
+      setInvoices(updatedInvs);
+      saveInvoices(updatedInvs);
+      if (bootstrapped.transactions.length > 0) {
+        const updatedTxs = [...bootstrapped.transactions, ...transactions];
+        setTransactions(updatedTxs);
+        saveTransactions(updatedTxs);
+      }
+      if (bootstrapped.receipts.length > 0) {
+        const updatedRecs = [...bootstrapped.receipts, ...receipts];
+        setReceipts(updatedRecs);
+        saveReceipts(updatedRecs);
+      }
+    }
+
+    const updatedPayments = [newRecord, ...payments];
+    setPayments(updatedPayments);
+    persistTuitionRecords(updatedPayments);
 
     logActivity({
       actor: userRole === 'admin' ? 'Administrator' : 'Staff User',
@@ -1250,6 +1400,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
       targetStudent: nameClean
     });
 
+    toast.success(`Created student tuition agreement for ${nameClean}.`);
     setShowAddStudentModal(false);
     setNewStudentName('');
     setNewInitialPayment(0);
@@ -1457,27 +1608,27 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             </span>
           </button>
           <button
-            onClick={() => handleTriggerTuitionSync()}
-            disabled={isTuitionLoading || isSyncingDirectly}
-            className="min-h-11 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
-            title="Pull latest tuition & fee schedules from connected Google Sheet"
+            onClick={() => {
+              const firstWithBalance = invoices.find(i => i.outstandingBalance > 0) || invoices[0] || null;
+              setSelectedInvoiceForPayment(firstWithBalance);
+              setRecordPaymentAmount(firstWithBalance ? (firstWithBalance.outstandingBalance || 100) : 100);
+              setRecordPaymentNotes('');
+              setShowRecordCustomPaymentModal(true);
+            }}
+            className="min-h-11 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+            title="Record tuition or fee payment manually"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isTuitionLoading || isSyncingDirectly ? 'animate-spin' : ''}`} />
-            <span>{isTuitionLoading || isSyncingDirectly ? 'Syncing...' : 'Sync from Google Sheets'}</span>
-            {lastTuitionSyncedTime && (
-              <span className="text-[10px] bg-emerald-800/80 px-1.5 py-0.5 rounded font-mono hidden md:inline">
-                {lastTuitionSyncedTime}
-              </span>
-            )}
+            <DollarSign className="w-3.5 h-3.5" />
+            <span>+ Record Payment</span>
           </button>
 
           <button
-            onClick={() => setShowSheetSyncModal(true)}
+            onClick={() => setShowAdjustmentModal(true)}
             className="min-h-11 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 dark:border-slate-700"
-            title="Configure Google Sheets Tuition URL and preview tabs"
+            title="Add institutional discount, fee waiver, or special charge"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Sheet Settings</span>
+            <PlusCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>+ Add Fee / Adjustment</span>
           </button>
 
           <button
@@ -1609,8 +1760,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             {/* Content: Cards View (Default for Mobile) */}
             {(mobileViewMode === 'cards') ? (
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredInvoices.map((inv) => (
-                  <div key={inv.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3 flex flex-col justify-between hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-all">
+                {filteredInvoices.map((inv, idx) => (
+                  <div key={`inv-card-${inv.id || inv.invoiceNumber || idx}-${idx}`} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3 flex flex-col justify-between hover:border-emerald-300 dark:hover:border-emerald-600/50 transition-all">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
@@ -1763,16 +1914,29 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                    {filteredInvoices.map((inv) => {
+                    {filteredInvoices.map((inv, idx) => {
+                      const isEditing = inlineEditingInvId === inv.id;
                       return (
-                        <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <tr key={`inv-row-${inv.id || inv.invoiceNumber || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">{inv.id}</td>
                           <td className="p-4">
                             <div className="font-bold text-slate-900 dark:text-white">{inv.studentName}</div>
                             <div className="text-[10px] text-slate-500 font-mono">{inv.studentId}</div>
                           </td>
                           <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">{inv.moduleTrack}</td>
-                          <td className="p-4 text-right font-mono text-slate-700 dark:text-slate-300">${inv.totalTuition.toLocaleString()}</td>
+                          <td className="p-4 text-right">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min={0}
+                                value={inlineTuitionVal}
+                                onChange={(e) => setInlineTuitionVal(Number(e.target.value) || 0)}
+                                className="w-24 px-2 py-1 text-right font-mono text-xs rounded-lg border-2 border-emerald-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none"
+                              />
+                            ) : (
+                              <span className="font-mono text-slate-700 dark:text-slate-300">${inv.totalTuition.toLocaleString()}</span>
+                            )}
+                          </td>
                           <td className="p-4 text-right font-mono text-indigo-600 dark:text-indigo-400 font-bold">
                             {inv.scholarships > 0 ? `-${inv.scholarships.toLocaleString()}` : '$0'}
                           </td>
@@ -1780,7 +1944,19 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                             {inv.discounts > 0 ? `-${inv.discounts.toLocaleString()}` : '$0'}
                           </td>
                           <td className="p-4 text-right font-mono text-slate-900 dark:text-white font-extrabold">${inv.netTuition.toLocaleString()}</td>
-                          <td className="p-4 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold">${inv.amountPaid.toLocaleString()}</td>
+                          <td className="p-4 text-right">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min={0}
+                                value={inlineAmountPaidVal}
+                                onChange={(e) => setInlineAmountPaidVal(Number(e.target.value) || 0)}
+                                className="w-24 px-2 py-1 text-right font-mono text-xs rounded-lg border-2 border-emerald-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none"
+                              />
+                            ) : (
+                              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">${inv.amountPaid.toLocaleString()}</span>
+                            )}
+                          </td>
                           <td className={`p-4 text-right font-mono font-extrabold ${inv.outstandingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                             ${inv.outstandingBalance.toLocaleString()}
                           </td>
@@ -1799,72 +1975,104 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                             </span>
                           </td>
                           <td className="p-4">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {inv.outstandingBalance > 0 && (
+                            {isEditing ? (
+                              <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => handleQuickMarkPaidInFull(inv)}
-                                  title={`Mark ${inv.studentName} Paid in Full ($${inv.netTuition || inv.totalTuition})`}
-                                  aria-label={`Mark ${inv.studentName} Paid in Full`}
-                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center border border-emerald-200 dark:border-emerald-800"
+                                  onClick={() => handleSaveInlineEdit(inv)}
+                                  title={`Save tuition and payment for ${inv.studentName}`}
+                                  aria-label={`Save tuition and payment for ${inv.studentName}`}
+                                  className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center shadow-xs"
                                 >
-                                  <CheckCircle2 className="w-4 h-4" />
+                                  <Check className="w-4 h-4" />
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedInvoiceForEdit(inv);
-                                  setEditInvoiceTuition(inv.totalTuition);
-                                  setEditInvoiceAmountPaid(inv.amountPaid || 0);
-                                  setEditInvoiceDiscounts(inv.discounts);
-                                  setEditInvoiceScholarships(inv.scholarships);
-                                  setEditInvoicePlan(inv.paymentPlan);
-                                  setEditInvoiceStatus(inv.status);
-                                  setEditInvoiceNotes(inv.notes || '');
-                                  setShowEditInvoiceModal(true);
-                                }}
-                                title={`Edit Invoice Settings for ${inv.studentName}`}
-                                aria-label={`Edit Invoice Settings for ${inv.studentName}`}
-                                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
-                              >
-                                <Settings className="w-4 h-4" />
-                              </button>
-                              {inv.outstandingBalance > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={handleCancelInlineEdit}
+                                  title="Cancel manual edit"
+                                  aria-label="Cancel manual edit"
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartInlineEdit(inv)}
+                                  title={`Quick manual edit tuition/paid for ${inv.studentName}`}
+                                  aria-label={`Quick manual edit tuition/paid for ${inv.studentName}`}
+                                  className="p-1.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center border border-slate-200 dark:border-slate-700"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                </button>
+                                {inv.outstandingBalance > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickMarkPaidInFull(inv)}
+                                    title={`Mark ${inv.studentName} Paid in Full ($${inv.netTuition || inv.totalTuition})`}
+                                    aria-label={`Mark ${inv.studentName} Paid in Full`}
+                                    className="p-1.5 bg-emerald-50 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center border border-emerald-200 dark:border-emerald-800"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedInvoiceForPayment(inv);
-                                    setRecordPaymentAmount(inv.outstandingBalance);
-                                    setRecordPaymentNotes('');
-                                    setShowRecordCustomPaymentModal(true);
+                                    setSelectedInvoiceForEdit(inv);
+                                    setEditInvoiceTuition(inv.totalTuition);
+                                    setEditInvoiceAmountPaid(inv.amountPaid || 0);
+                                    setEditInvoiceDiscounts(inv.discounts);
+                                    setEditInvoiceScholarships(inv.scholarships);
+                                    setEditInvoicePlan(inv.paymentPlan);
+                                    setEditInvoiceStatus(inv.status);
+                                    setEditInvoiceNotes(inv.notes || '');
+                                    setShowEditInvoiceModal(true);
                                   }}
-                                  title={`Record Tuition Payment for ${inv.studentName}`}
-                                  aria-label={`Record Tuition Payment for ${inv.studentName}`}
-                                  className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                  title={`Edit Invoice Settings for ${inv.studentName}`}
+                                  aria-label={`Edit Invoice Settings for ${inv.studentName}`}
+                                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
                                 >
-                                  <DollarSign className="w-4 h-4" />
+                                  <Settings className="w-4 h-4" />
                                 </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => viewInvoiceAsReceipt(inv)}
-                                title={`View Account Statement for ${inv.studentName}`}
-                                aria-label={`View Account Statement for ${inv.studentName}`}
-                                className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
-                              >
-                                <FileText className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleInitiateRemoveStudent(inv)}
-                                title={`Remove ${inv.studentName} from payments and school roster`}
-                                aria-label={`Remove ${inv.studentName} from payments and school roster`}
-                                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-rose-500"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                                {inv.outstandingBalance > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedInvoiceForPayment(inv);
+                                      setRecordPaymentAmount(inv.outstandingBalance);
+                                      setRecordPaymentNotes('');
+                                      setShowRecordCustomPaymentModal(true);
+                                    }}
+                                    title={`Record Tuition Payment for ${inv.studentName}`}
+                                    aria-label={`Record Tuition Payment for ${inv.studentName}`}
+                                    className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => viewInvoiceAsReceipt(inv)}
+                                  title={`View Account Statement for ${inv.studentName}`}
+                                  aria-label={`View Account Statement for ${inv.studentName}`}
+                                  className="p-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleInitiateRemoveStudent(inv)}
+                                  title={`Remove ${inv.studentName} from payments and school roster`}
+                                  aria-label={`Remove ${inv.studentName} from payments and school roster`}
+                                  className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-rose-500"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1935,8 +2143,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             {/* Cards View */}
             {mobileViewMode === 'cards' ? (
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredTransactions.map((tx) => (
-                  <div key={tx.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3">
+                {filteredTransactions.map((tx, idx) => (
+                  <div key={`tx-card-${tx.id || tx.paymentNumber || idx}-${idx}`} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <span className="text-[10px] font-mono font-bold text-slate-400">{tx.id} • {tx.invoiceId}</span>
@@ -1984,8 +2192,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                    {filteredTransactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    {filteredTransactions.map((tx, idx) => (
+                      <tr key={`tx-row-${tx.id || tx.paymentNumber || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">{tx.id}</td>
                         <td className="p-4 font-mono text-slate-500">{tx.invoiceId}</td>
                         <td className="p-4 font-bold text-slate-900 dark:text-white">
@@ -2075,8 +2283,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
             {/* Cards View */}
             {mobileViewMode === 'cards' ? (
               <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredReceipts.map((rec) => (
-                  <div key={rec.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3 flex flex-col justify-between">
+                {filteredReceipts.map((rec, idx) => (
+                  <div key={`rec-card-${rec.id || rec.receiptNumber || idx}-${idx}`} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs space-y-3 flex flex-col justify-between">
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -2139,8 +2347,8 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
-                    {filteredReceipts.map((rec) => (
-                      <tr key={rec.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    {filteredReceipts.map((rec, idx) => (
+                      <tr key={`rec-row-${rec.id || rec.receiptNumber || idx}-${idx}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="p-4 font-mono font-extrabold text-emerald-700 dark:text-emerald-400">{rec.receiptNumber}</td>
                         <td className="p-4">
                           <div className="font-bold text-slate-900 dark:text-white">{rec.studentName}</div>
@@ -3118,7 +3326,7 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
               ) : (
                 <div className="space-y-3">
                   {removedStudentRecords.map((item, idx) => (
-                    <div key={idx} className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                    <div key={`removed-archived-${item.record.studentId || item.record.studentName || idx}-${idx}`} className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-extrabold text-slate-900 dark:text-white text-sm">{item.record.studentName}</span>
@@ -3187,20 +3395,20 @@ export const PaymentTab: React.FC<PaymentTabProps> = ({
           />
         )}
 
-        {/* Google Sheets Tuition & Fees Sync Modal */}
-        {showSheetSyncModal && (
-          <GoogleSheetsTuitionModal
-            isOpen={showSheetSyncModal}
-            onClose={() => setShowSheetSyncModal(false)}
-            currentPayments={payments}
-            onUpdatePayments={(updatedRecords) => {
-              setPayments(updatedRecords);
-              persistTuitionRecords(updatedRecords);
+        {/* Financial Adjustment / Fee Modal */}
+        {showAdjustmentModal && (
+          <FinancialAdjustmentModal
+            invoice={selectedInvoiceForEdit || invoices[0] || null}
+            isOpen={showAdjustmentModal}
+            onClose={() => setShowAdjustmentModal(false)}
+            onAdjustmentApplied={({ adjustment, updatedInvoice }) => {
+              const updated = invoices.map(i => i.id === updatedInvoice.id ? updatedInvoice : i);
+              setInvoices(updated);
+              saveInvoices(updated);
+              syncToPayments(updated, transactions);
+              setShowAdjustmentModal(false);
+              toast.success(`Adjustment of $${adjustment.amount} applied.`);
             }}
-            tuitionSheetUrl={tuitionSheetUrl}
-            onSaveTuitionSheetUrl={setTuitionSheetUrl}
-            mainSheetUrl={mainSheetUrl}
-            lastSyncedTime={lastTuitionSyncedTime}
           />
         )}
     </div>
