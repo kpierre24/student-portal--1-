@@ -1,9 +1,14 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker using unpkg CDN matching the installed version
+// Configure PDF.js worker using self-hosted worker on the same origin.
+// Serving the worker from the application origin avoids cross-origin dynamic module
+// import restrictions and Content-Security-Policy violations.
 if (typeof window !== 'undefined') {
   try {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version || '4.10.38'}/build/pdf.worker.min.mjs`;
+    const origin = (window.location && window.location.origin && window.location.origin !== 'null')
+      ? window.location.origin
+      : '';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = origin ? `${origin}/pdf.worker.min.mjs` : '/pdf.worker.min.mjs';
   } catch (e) {
     console.warn('PDF.js worker setup note:', e);
   }

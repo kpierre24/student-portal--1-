@@ -400,7 +400,8 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
               status: p.status || 'Past Due'
             };
           })
-          .filter(Boolean);
+          .filter(Boolean)
+          .sort((a, b) => (a?.name || '').trim().localeCompare((b?.name || '').trim(), undefined, { sensitivity: 'base', numeric: true }));
 
         const totalArrears = rows.reduce((acc, r) => acc + parseFloat(r?.balance.replace('$', '') || '0'), 0);
 

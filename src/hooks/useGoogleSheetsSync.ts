@@ -36,6 +36,7 @@ interface UseGoogleSheetsSyncProps {
   setIsLoading: (loading: boolean) => void;
   isLoading: boolean;
   appUser: any;
+  onSyncToCloud?: (records: AttendanceRecord[], classDays: ClassDay[]) => Promise<void> | void;
 }
 
 export const useGoogleSheetsSync = ({
@@ -53,6 +54,7 @@ export const useGoogleSheetsSync = ({
   setIsLoading,
   isLoading,
   appUser,
+  onSyncToCloud,
 }: UseGoogleSheetsSyncProps) => {
   // Sheet URL State
   const [sheetUrl, setSheetUrl] = useState<string>(() => {
@@ -289,6 +291,10 @@ export const useGoogleSheetsSync = ({
       // Filter out existing records that correspond to these synced sheets and remove any obsolete legacy days
       const preservedRecords = records.filter(r => {
         if (!r || !r.classDay || isObsoleteLegacyClassDay(r.classDay)) return false;
+        // Always preserve manual overrides and records belonging to manual class sessions
+        if (r.manualOverride === true || (typeof r.classDay === 'string' && r.classDay.startsWith('day_'))) {
+          return true;
+        }
         if (syncedSheetTitles.has(r.classDay)) return false;
         for (const title of Array.from(syncedSheetTitles)) {
           if (isMatchingLesson(r.classDay, title)) return false;
@@ -455,7 +461,7 @@ export const useGoogleSheetsSync = ({
 
       const newSyncedRecords: AttendanceRecord[] = [];
       const updatedClassDays = [
-        ...classDays.filter(d => !syncedSheetTitles.has(d.id) && !isObsoleteLegacyClassDay(d.id)),
+        ...classDays.filter(d => d.isManual || (typeof d.id === 'string' && d.id.startsWith('day_')) || (!syncedSheetTitles.has(d.id) && !isObsoleteLegacyClassDay(d.id))),
       ];
       const conflictsList: MergeConflict[] = [];
 
@@ -578,10 +584,13 @@ export const useGoogleSheetsSync = ({
         setDataSource('sheets');
         const formattedTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         setLastSyncedTime(formattedTime);
-        localStorage.setItem('dataSource', 'sheets');
-        localStorage.setItem('attendanceRecords', JSON.stringify(finalRecords));
-        localStorage.setItem('classDays', JSON.stringify(updatedClassDays));
-        localStorage.setItem('lastSyncedTime', formattedTime);
+        safeStorage.setItem('dataSource', 'sheets');
+        safeStorage.setJSON('attendanceRecords', finalRecords);
+        safeStorage.setJSON('classDays', updatedClassDays);
+        safeStorage.setItem('lastSyncedTime', formattedTime);
+        if (onSyncToCloud) {
+          onSyncToCloud(finalRecords, updatedClassDays);
+        }
       }
     } catch (err: any) {
       const appErr = displayErrorToUser(err, 'handleSyncWithGoogleSheets - sync sequence failure', 'network');
@@ -622,7 +631,15 @@ export const useGoogleSheetsSync = ({
     setClassDays(updatedClassDays);
     setRecords(finalRecords);
     setDataSource('sheets');
-    setLastSyncedTime(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
+    const formattedTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    setLastSyncedTime(formattedTime);
+    safeStorage.setItem('dataSource', 'sheets');
+    safeStorage.setJSON('attendanceRecords', finalRecords);
+    safeStorage.setJSON('classDays', updatedClassDays);
+    safeStorage.setItem('lastSyncedTime', formattedTime);
+    if (onSyncToCloud) {
+      onSyncToCloud(finalRecords, updatedClassDays);
+    }
 
     setPendingConflicts([]);
     setPendingSyncData(null);

@@ -35,9 +35,12 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
   // Attach authoritative Supabase session access token in Authorization header
   const authHeaders: Record<string, string> = {};
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData?.session?.access_token) {
-      authHeaders['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+    const { isSupabaseConfiguredClient } = await import('../../lib/supabaseClient');
+    if (isSupabaseConfiguredClient()) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.access_token) {
+        authHeaders['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+      }
     }
   } catch {
     // Non-blocking

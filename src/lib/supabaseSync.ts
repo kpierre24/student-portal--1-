@@ -139,45 +139,48 @@ export async function saveToSupabase(
 
     // 1. Attempt direct Supabase app_states upsert
     try {
-      let { error } = await supabase
-        .from('app_states')
-        .upsert({
-          id: docId,
-          state: cleanState,
-          version: nextVer,
-          updated_at: timestamp,
-          updated_by: updater
-        });
-
-      if (error && (error.message?.includes('version') || error.code === '42703')) {
-        const fallback = await supabase
+      const { isSupabaseConfiguredClient } = await import('./supabaseClient');
+      if (isSupabaseConfiguredClient()) {
+        let { error } = await supabase
           .from('app_states')
           .upsert({
             id: docId,
             state: cleanState,
+            version: nextVer,
             updated_at: timestamp,
             updated_by: updater
           });
-        error = fallback.error;
-      }
 
-      if (!error) {
-        supabaseSuccess = true;
-        if (docId !== 'shared_default_state') {
-          try {
-            await supabase
-              .from('app_states')
-              .upsert({
-                id: 'shared_default_state',
-                state: cleanState,
-                version: nextVer,
-                updated_at: timestamp,
-                updated_by: updater
-              });
-          } catch {}
+        if (error && (error.message?.includes('version') || error.code === '42703')) {
+          const fallback = await supabase
+            .from('app_states')
+            .upsert({
+              id: docId,
+              state: cleanState,
+              updated_at: timestamp,
+              updated_by: updater
+            });
+          error = fallback.error;
         }
-      } else if (error.code === '42P01') {
-        throw new Error('TABLE_NOT_FOUND');
+
+        if (!error) {
+          supabaseSuccess = true;
+          if (docId !== 'shared_default_state') {
+            try {
+              await supabase
+                .from('app_states')
+                .upsert({
+                  id: 'shared_default_state',
+                  state: cleanState,
+                  version: nextVer,
+                  updated_at: timestamp,
+                  updated_by: updater
+                });
+            } catch {}
+          }
+        } else if (error.code === '42P01') {
+          throw new Error('TABLE_NOT_FOUND');
+        }
       }
     } catch (sbErr: any) {
       if (sbErr?.message === 'TABLE_NOT_FOUND') throw sbErr;

@@ -146,9 +146,16 @@ export const stateHydrationService = {
 
       const studentsList = studentsRes?.students || [];
       const recordsList = attendanceRes?.records || [];
-      const classDaysList = (attendanceRes?.classDays && attendanceRes.classDays.length > 0)
+      let classDaysList = (attendanceRes?.classDays && attendanceRes.classDays.length > 0)
         ? attendanceRes.classDays
         : CURRICULUM_CLASS_DAYS;
+
+      // Ensure all standard curriculum class days plus custom sessions are included
+      const existingDayIds = new Set(classDaysList.map((d: any) => d.id || d.name));
+      const missingCurriculumDays = CURRICULUM_CLASS_DAYS.filter(d => !existingDayIds.has(d.id) && !existingDayIds.has(d.name));
+      if (missingCurriculumDays.length > 0) {
+        classDaysList = [...missingCurriculumDays, ...classDaysList];
+      }
       const excusedAbsences = attendanceRes?.excusedAbsences || {};
       const academicYears = academicsRes?.academicYears || [];
       const terms = academicsRes?.terms || [];

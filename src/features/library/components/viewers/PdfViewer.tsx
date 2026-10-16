@@ -112,17 +112,30 @@ export const PdfViewer: React.FC<ViewerBaseProps> = ({
 
         if (rawUrl.startsWith('data:')) {
           bytes = dataUrlToUint8Array(rawUrl);
+        } else if (rawUrl.startsWith('blob:')) {
+          try {
+            const resp = await fetch(rawUrl);
+            const buffer = await resp.arrayBuffer();
+            bytes = new Uint8Array(buffer);
+          } catch {
+            setUseIframeFallback(true);
+          }
         } else if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
           try {
-            const resp = await fetch(rawUrl, { mode: 'cors' });
-            if (resp.ok) {
+            // Try fetching directly or via proxy / cors
+            const resp = await fetch(rawUrl, { mode: 'cors' }).catch(() => fetch(rawUrl, { mode: 'no-cors' }));
+            if (resp && resp.ok) {
               const buffer = await resp.arrayBuffer();
               bytes = new Uint8Array(buffer);
             } else {
-              setUseIframeFallback(true);
+              // If CORS blocks direct fetch, fetch via object blob or use iframe embed
+              const blobResp = await fetch(rawUrl);
+              const blob = await blobResp.blob();
+              const buffer = await blob.arrayBuffer();
+              bytes = new Uint8Array(buffer);
             }
-          } catch {
-            // CORS or network failure -> fallback to native iframe viewer
+          } catch (fetchErr) {
+            console.warn('Direct fetch failed, trying iframe fallback:', fetchErr);
             setUseIframeFallback(true);
           }
         }

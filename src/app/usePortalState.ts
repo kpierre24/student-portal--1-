@@ -657,6 +657,15 @@ export function usePortalState() {
     setIsLoading,
     isLoading,
     appUser,
+    onSyncToCloud: async (syncedRecords, syncedClassDays) => {
+      const activeEmail = appUser?.email || user?.email;
+      const fullState = {
+        ...buildCurrentSyncedState(),
+        records: syncedRecords,
+        classDays: syncedClassDays,
+      };
+      await saveToSupabase(activeEmail, fullState, 'Synchronize sheet attendance and class days to Supabase');
+    },
   });
 
   const {
@@ -872,7 +881,6 @@ export function usePortalState() {
 
   // Master debounced cloud auto-persister: any adjustment (quizzes, students, media, etc.) syncs to Supabase
   useEffect(() => {
-    console.log('Auto-sync effect triggered');
     if (!isInitialLoadDoneRef.current) return;
 
     const activeEmail = appUser?.email || user?.email;
@@ -1254,8 +1262,35 @@ export function usePortalState() {
       try {
         const cloudState = await loadFromSupabase(activeEmail);
         if (cloudState && active) {
-          if (cloudState.records !== undefined) setRecords(cloudState.records);
-          if (cloudState.classDays !== undefined) setClassDays(cloudState.classDays);
+          if (cloudState.classDays !== undefined) {
+            setClassDays(prev => {
+              const cloudDays = Array.isArray(cloudState.classDays) ? cloudState.classDays : [];
+              const cloudIds = new Set(cloudDays.map((d: any) => d.id || d.name));
+              // Preserve any local manual class sessions not yet in cloud
+              const localManualDays = prev.filter(d => (d.isManual || (typeof d.id === 'string' && d.id.startsWith('day_'))) && !cloudIds.has(d.id));
+              const merged = [...cloudDays, ...localManualDays];
+              safeStorage.setJSON('classDays', merged);
+              return merged;
+            });
+          }
+          if (cloudState.records !== undefined) {
+            setRecords(prev => {
+              const cloudRecords = Array.isArray(cloudState.records) ? cloudState.records : [];
+              const cloudKeySet = new Set(
+                cloudRecords.map((r: any) => `${(r.name || r.studentName || '').toLowerCase().trim()}:::${(r.classDay || '').toLowerCase().trim()}`)
+              );
+              // Preserve any local manual overrides or records for manual class sessions
+              const localManualRecords = prev.filter(r => {
+                if (!r || !r.classDay) return false;
+                const key = `${(r.name || r.studentName || '').toLowerCase().trim()}:::${(r.classDay || '').toLowerCase().trim()}`;
+                const isManual = r.manualOverride === true || (typeof r.classDay === 'string' && r.classDay.startsWith('day_'));
+                return isManual && !cloudKeySet.has(key);
+              });
+              const merged = [...cloudRecords, ...localManualRecords];
+              safeStorage.setJSON('attendanceRecords', merged);
+              return merged;
+            });
+          }
           if (cloudState.studentNotes !== undefined) setStudentNotes(cloudState.studentNotes);
           if (cloudState.excusedAbsences !== undefined) setExcusedAbsences(cloudState.excusedAbsences);
           if (cloudState.rubricScores !== undefined) setRubricScores(cloudState.rubricScores);
@@ -2609,6 +2644,7 @@ export function usePortalState() {
       setShowBatchBroadcastModal(false);
     },
     handleToggleStudentAttendance: (name: string, classDayId: string, status: string) => {
+      let updatedRecs: AttendanceRecord[] = [];
       setRecords(prev => {
         const isPresent = status === 'present';
         const normName = normalizeStudentName(name);
@@ -2626,9 +2662,11 @@ export function usePortalState() {
             present: isPresent, 
             manualOverride: true 
           };
+          updatedRecs = copy;
+          safeStorage.setJSON('attendanceRecords', copy);
           return copy;
         }
-        return [...prev, { 
+        updatedRecs = [...prev, { 
           name, 
           studentName: name, 
           classDay: classDayId, 
@@ -2637,7 +2675,12 @@ export function usePortalState() {
           score: isPresent ? 'P' : '', 
           manualOverride: true 
         }];
+        safeStorage.setJSON('attendanceRecords', updatedRecs);
+        return updatedRecs;
       });
+
+      const activeEmail = appUser?.email || user?.email;
+      saveToSupabase(activeEmail, { ...buildCurrentSyncedState(), records: updatedRecs }, `Updated attendance for ${name}`).catch(() => {});
     },
     handleToggleExcusedAbsence: (name: string, classDayId: string) => {
       setExcusedAbsences(prev => {
@@ -2860,7 +2903,42 @@ export function usePortalState() {
         }
       } catch {}
 
-      // 10. Audit log and toast notification
+      // 10. Trigger immediate Supabase & Cloud Backup sync so permanent deletion persists across logouts & devices
+      const activeEmail = appUser?.email || user?.email;
+      try {
+        const stateToSave = {
+          records: records.filter(r => {
+            const rName = r.name || r.studentName || '';
+            return normalizeStudentName(rName) !== normName && rName !== studentName;
+          }),
+          classDays,
+          studentNotes,
+          excusedAbsences,
+          rubricScores,
+          deletedStudentNames: Array.from(new Set([...deletedStudentNames, studentName, normName, studentId, identifier])),
+          studentPhotos,
+          studentLevels,
+          customAssignments,
+          submissions,
+          notifications,
+          sheetUrl,
+          courses,
+          schedules,
+          libraryResources,
+          classroomMedia,
+          facultyTeachers,
+          payments: payments.filter(p => normalizeStudentName(p.studentName || '') !== normName),
+          messages,
+          zoomExceptionNote,
+          hasZoomException,
+          userCredentials
+        };
+        saveToSupabase(activeEmail, stateToSave, `Permanently deleted student ${studentName}`).catch(() => {});
+      } catch (syncErr) {
+        console.warn('Error syncing deletion to Supabase:', syncErr);
+      }
+
+      // Audit log and toast notification
       logActivity({
         action: 'DELETE_STUDENT',
         actionCategory: 'Student Record',
@@ -2900,45 +2978,62 @@ export function usePortalState() {
     handleAddClassDay: (title?: string) => {
       const newId = `day_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       let assignedTitle = '';
+      let updatedDays: ClassDay[] = [];
       setClassDays(prev => {
         const nextNum = prev.length + 1;
         assignedTitle = (typeof title === 'string' && title.trim().length > 0)
           ? title.trim()
           : `Class Day ${nextNum}`;
-        const updated = [...prev, { id: newId, name: assignedTitle }];
-        localStorage.setItem('classDays', JSON.stringify(updated));
-        return updated;
+        updatedDays = [...prev, { id: newId, name: assignedTitle, isManual: true }];
+        safeStorage.setJSON('classDays', updatedDays);
+        return updatedDays;
       });
       showToast('success', 'Class Session Added', `Created new class session: "${assignedTitle || 'Class Day'}"`);
+
+      const activeEmail = appUser?.email || user?.email;
+      saveToSupabase(activeEmail, { ...buildCurrentSyncedState(), classDays: updatedDays }, 'Manual class session added').catch(() => {});
     },
     handleEditClassDayTitle: (id: string, newTitle: string) => {
+      let updatedDays: ClassDay[] = [];
       setClassDays(prev => {
-        const updated = prev.map(d => d.id === id ? { ...d, name: newTitle } : d);
-        localStorage.setItem('classDays', JSON.stringify(updated));
-        return updated;
+        updatedDays = prev.map(d => d.id === id ? { ...d, name: newTitle } : d);
+        safeStorage.setJSON('classDays', updatedDays);
+        return updatedDays;
       });
       showToast('success', 'Class Session Renamed', `Renamed class day to "${newTitle}"`);
+
+      const activeEmail = appUser?.email || user?.email;
+      saveToSupabase(activeEmail, { ...buildCurrentSyncedState(), classDays: updatedDays }, 'Renamed class day session').catch(() => {});
     },
     handleDeleteClassDay: (id: string) => {
+      let nextDeleted: string[] = [];
       setDeletedClassDayIds(prev => {
-        const next = Array.from(new Set([...prev, id]));
-        localStorage.setItem('deletedClassDayIds', JSON.stringify(next));
-        return next;
+        nextDeleted = Array.from(new Set([...prev, id]));
+        safeStorage.setJSON('deletedClassDayIds', nextDeleted);
+        return nextDeleted;
       });
+      let updatedDays: ClassDay[] = [];
       setClassDays(prev => {
-        const updated = prev.filter(d => d.id !== id);
-        localStorage.setItem('classDays', JSON.stringify(updated));
-        return updated;
+        updatedDays = prev.filter(d => d.id !== id);
+        safeStorage.setJSON('classDays', updatedDays);
+        return updatedDays;
       });
       showToast('info', 'Class Session Deleted', 'Class day session has been removed.');
+
+      const activeEmail = appUser?.email || user?.email;
+      saveToSupabase(activeEmail, { ...buildCurrentSyncedState(), classDays: updatedDays, deletedClassDayIds: nextDeleted }, 'Deleted class day session').catch(() => {});
     },
     handleClearClassDayRecords: (id: string) => {
+      let updatedRecs: AttendanceRecord[] = [];
       setRecords(prev => {
-        const updated = prev.filter(r => r.classDay !== id);
-        localStorage.setItem('attendanceRecords', JSON.stringify(updated));
-        return updated;
+        updatedRecs = prev.filter(r => r.classDay !== id);
+        safeStorage.setJSON('attendanceRecords', updatedRecs);
+        return updatedRecs;
       });
       showToast('info', 'Records Reset', 'Attendance records for this class day have been reset.');
+
+      const activeEmail = appUser?.email || user?.email;
+      saveToSupabase(activeEmail, { ...buildCurrentSyncedState(), records: updatedRecs }, 'Reset class day records').catch(() => {});
     },
     classDayStats,
     trendChartData,

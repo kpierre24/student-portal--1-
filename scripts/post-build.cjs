@@ -21,6 +21,15 @@ try {
     console.log('Authoritative state data synchronized to build and dist distributions.');
   }
 
+  // Ensure PDF worker is present in both dist and build distributions
+  const workerSrc = path.join(__dirname, '../public/pdf.worker.min.mjs');
+  const workerDist = path.join(__dirname, '../dist/pdf.worker.min.mjs');
+  const workerBuild = path.join(__dirname, '../build/pdf.worker.min.mjs');
+  if (fs.existsSync(workerSrc)) {
+    if (!fs.existsSync(workerDist)) fs.copyFileSync(workerSrc, workerDist);
+    if (!fs.existsSync(workerBuild)) fs.copyFileSync(workerSrc, workerBuild);
+  }
+
   console.log('Build artifacts successfully synchronized to build/ directory!');
 } catch (err) {
   console.error('Warning: Failed to synchronize build artifacts to build/ directory:', err.message);

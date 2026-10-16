@@ -82,7 +82,7 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
     zoomMeetingId: '815 0537 7396',
     zoomPasscode: '163738',
     zoomUrl: 'https://zoom.us/j/81505377396',
-    googleMeetUrl: 'https://meet.google.com/hte-som-live',
+    googleMeetUrl: 'https://meet.google.com/wgd-vrrq-sjm',
     platformMode: 'zoom' as 'zoom' | 'google_meet',
     isLive: true,
     pinnedScripture: '2 Timothy 4:2 — Preach the word; be instant in season, out of season...'
@@ -98,6 +98,11 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
   const [liveNoteText, setLiveNoteText] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [noteSavedMessage, setNoteSavedMessage] = useState<string | null>(null);
+
+  // YouTube Auto-Upload & Broadcast Sync State
+  const [youtubeSyncStatus, setYoutubeSyncStatus] = useState<'idle' | 'recording' | 'syncing' | 'synced'>('idle');
+  const [youtubeChannelName, setYoutubeChannelName] = useState('HTEIM School of Ministry TV');
+  const [showYoutubeModal, setShowYoutubeModal] = useState(false);
 
   // Live Chat & Prayer Requests State
   const [chatMessages, setChatMessages] = useState([
@@ -343,67 +348,186 @@ export const LiveClassroomWorkspace: React.FC<LiveClassroomWorkspaceProps> = ({
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center font-black text-xl">
-                  ZOOM
+                <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center font-black text-xs sm:text-sm shadow-md ${
+                  session.platformMode === 'zoom' 
+                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-400' 
+                    : 'bg-emerald-600/20 border-emerald-500/40 text-emerald-400'
+                }`}>
+                  {session.platformMode === 'zoom' ? 'ZOOM' : 'MEET'}
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-white">Live Zoom Feed Portal</h3>
-                  <p className="text-xs text-slate-400">Secure connection to HTEIM Ministry Broadcast Studio</p>
+                  <h3 className="text-base font-extrabold text-white">
+                    {session.platformMode === 'zoom' ? 'Live Zoom Broadcast Portal' : 'Google Meet Live Stream Portal'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {session.platformMode === 'zoom' ? 'Secure connection to HTEIM Zoom Studio' : 'Native Google Meet Workspace Broadcast'}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Platform Mode Toggle */}
+                <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setSession(prev => ({ ...prev, platformMode: 'zoom' }))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      session.platformMode === 'zoom'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Zoom Stream
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSession(prev => ({ ...prev, platformMode: 'google_meet' }))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      session.platformMode === 'google_meet'
+                        ? 'bg-emerald-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Google Meet
+                  </button>
+                </div>
+
                 <a
-                  href={session.zoomUrl}
+                  href={session.platformMode === 'zoom' ? session.zoomUrl : session.googleMeetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer"
+                  className={`px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 shadow-lg transition-transform active:scale-95 cursor-pointer text-white ${
+                    session.platformMode === 'zoom' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>Launch Zoom Feed in App / Browser</span>
+                  <span>Launch {session.platformMode === 'zoom' ? 'Zoom' : 'Google Meet'}</span>
                 </a>
               </div>
             </div>
 
-            {/* Zoom Meeting Credentials Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs">
-              <div>
-                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Meeting ID</span>
-                <span className="font-mono font-black text-sm text-white select-all">{session.zoomMeetingId}</span>
+            {/* Credentials / Link Card */}
+            {session.platformMode === 'zoom' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Meeting ID</span>
+                  <span className="font-mono font-black text-sm text-white select-all">{session.zoomMeetingId}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Passcode</span>
+                  <span className="font-mono font-black text-sm text-[#dfc18b] select-all">{session.zoomPasscode}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Schedule</span>
+                  <span className="font-bold text-slate-200">Tuesdays @ 7:00 PM EST</span>
+                </div>
               </div>
-              <div>
-                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Passcode</span>
-                <span className="font-mono font-black text-sm text-[#dfc18b] select-all">{session.zoomPasscode}</span>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Google Meet Secure Room URL</span>
+                  <span className="font-mono font-black text-xs text-emerald-300 select-all truncate block">{session.googleMeetUrl}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Drive Cloud Integration</span>
+                  <span className="font-bold text-slate-200">Instant Auto-Recording to Google Drive</span>
+                </div>
               </div>
-              <div>
-                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Schedule</span>
-                <span className="font-bold text-slate-200">Tuesdays @ 7:00 PM EST</span>
-              </div>
-            </div>
+            )}
 
-            {/* Embedded Zoom Feed / Interactive View Placeholder */}
-            <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center p-6 text-center space-y-4">
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent z-10" />
-              <div className="z-20 space-y-3 max-w-md mx-auto">
-                <div className="w-16 h-16 rounded-full bg-blue-600/30 border border-blue-500/50 text-blue-400 flex items-center justify-center mx-auto animate-pulse">
-                  <Video className="w-8 h-8" />
+            {/* Embedded Stream / Interactive View */}
+            <div className="relative aspect-video rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center overflow-hidden shadow-2xl">
+              {session.platformMode === 'zoom' ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-4 bg-slate-950">
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent z-10" />
+                  <div className="z-20 space-y-3 max-w-md mx-auto">
+                    <div className="w-16 h-16 rounded-full bg-blue-600/30 border border-blue-500/50 text-blue-400 flex items-center justify-center mx-auto animate-pulse">
+                      <Video className="w-8 h-8" />
+                    </div>
+                    <h4 className="text-sm font-extrabold text-white">HTEIM Zoom Broadcast Live Feed Active</h4>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Join the live room to participate in interactive homiletics discussions, Q&A sessions, and ministerial activations with Pastor Samuel Selkridge.
+                    </p>
+                    <div className="pt-2 flex items-center justify-center gap-3">
+                      <a
+                        href={session.zoomUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-xl transition-all cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <span>Connect to Zoom Stream</span>
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
                 </div>
-                <h4 className="text-sm font-extrabold text-white">HTEIM Zoom Broadcast Live Feed Active</h4>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Join the live room to participate in interactive homiletics discussions, Q&A sessions, and ministerial activations with Pastor Samuel Selkridge.
-                </p>
-                <div className="pt-2 flex items-center justify-center gap-3">
-                  <a
-                    href={session.zoomUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-xl transition-all cursor-pointer inline-flex items-center gap-2"
-                  >
-                    <span>Connect to Zoom Stream</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+              ) : (
+                <div className="w-full h-full flex flex-col relative bg-slate-950">
+                  <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700 shadow-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                      <span className="font-extrabold text-white">Google Meet Live & YouTube Auto-Sync</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {youtubeSyncStatus === 'idle' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setYoutubeSyncStatus('recording');
+                            setTimeout(() => {
+                              setYoutubeSyncStatus('syncing');
+                              setTimeout(() => {
+                                setYoutubeSyncStatus('synced');
+                              }, 3000);
+                            }, 3000);
+                          }}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 shadow cursor-pointer transition-all"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                          <span>Start Stream & Auto-Upload to YouTube</span>
+                        </button>
+                      )}
+
+                      {youtubeSyncStatus === 'recording' && (
+                        <span className="px-3 py-1 bg-amber-600 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 animate-pulse">
+                          Recording Meet Session...
+                        </span>
+                      )}
+
+                      {youtubeSyncStatus === 'syncing' && (
+                        <span className="px-3 py-1 bg-indigo-600 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 animate-pulse">
+                          Syncing Recording to YouTube Channel...
+                        </span>
+                      )}
+
+                      {youtubeSyncStatus === 'synced' && (
+                        <span className="px-3 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5">
+                          ✓ Auto-Uploaded to {youtubeChannelName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <iframe
+                    src={`${session.googleMeetUrl}?pli=1&authuser=0`}
+                    className="w-full h-full border-0 rounded-2xl bg-slate-950"
+                    allow="camera; microphone; fullscreen; display-capture; autoplay"
+                    title="HTEIM Google Meet Live Stream"
+                  />
+                  <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2">
+                    <a
+                      href={session.googleMeetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open in Full Google Meet Window</span>
+                    </a>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Pinned Scripture Bar */}

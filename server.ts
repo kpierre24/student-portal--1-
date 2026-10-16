@@ -65,6 +65,9 @@ async function startServer() {
           if (filePath.endsWith(".html") || filePath.endsWith("sw.js") || filePath.endsWith("registerSW.js")) {
             res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
           }
+          if (filePath.endsWith(".mjs")) {
+            res.setHeader("Content-Type", "text/javascript");
+          }
         },
       })
     );

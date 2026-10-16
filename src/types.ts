@@ -762,6 +762,7 @@ export type ClassDay = {
   academicYear?: number;
   date?: string;
   isLocked?: boolean;
+  isManual?: boolean;
 };
 
 export type StudentEnrollmentStatus = 'active' | 'dropped_out' | 'withdrawn' | 'graduated' | 'leave_of_absence';

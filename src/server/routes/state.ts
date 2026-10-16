@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import { stateHydrationService, assignmentsService } from "../services/domain";
+import { stateHydrationService, assignmentsService, attendanceService } from "../services/domain";
 import { getServerSupabase } from "../services/supabaseServer";
 import { sanitizeProductionState } from "../../data/guards";
 import { logger } from "../../lib/logger";
@@ -110,6 +110,39 @@ stateRouter.get("/", async (req: Request, res: Response) => {
       if (baselineState.studentNotes && Object.keys(state.studentNotes || {}).length === 0) {
         state.studentNotes = baselineState.studentNotes;
       }
+
+      // Merge classDays: preserve all manual and custom class sessions from baselineState
+      if (Array.isArray(baselineState.classDays) && baselineState.classDays.length > 0) {
+        if (!Array.isArray(state.classDays) || state.classDays.length === 0) {
+          state.classDays = baselineState.classDays;
+        } else {
+          const existingDayIds = new Set(state.classDays.map((d: any) => d.id || d.name));
+          const additionalDays = baselineState.classDays.filter((d: any) => d && !existingDayIds.has(d.id) && !existingDayIds.has(d.name));
+          state.classDays = [...state.classDays, ...additionalDays];
+        }
+      }
+
+      // Merge records: preserve all attendance records (including manual class day records & manual overrides)
+      if (Array.isArray(baselineState.records) && baselineState.records.length > 0) {
+        if (!Array.isArray(state.records) || state.records.length === 0) {
+          state.records = baselineState.records;
+        } else {
+          const recMap = new Map<string, any>();
+          state.records.forEach((r: any) => {
+            const key = `${(r.studentName || r.name || '').toLowerCase().trim()}:::${(r.classDay || r.sessionId || '').toLowerCase().trim()}`;
+            recMap.set(key, r);
+          });
+          baselineState.records.forEach((r: any) => {
+            const key = `${(r.studentName || r.name || '').toLowerCase().trim()}:::${(r.classDay || r.sessionId || '').toLowerCase().trim()}`;
+            if (!recMap.has(key)) {
+              recMap.set(key, r);
+            } else if (r.manualOverride && !recMap.get(key)?.manualOverride) {
+              recMap.set(key, r);
+            }
+          });
+          state.records = Array.from(recMap.values());
+        }
+      }
     }
 
     const version = Number(state.version) || 1;
@@ -196,6 +229,19 @@ stateRouter.post("/", async (req: Request, res: Response) => {
           }
           assignmentsService.cacheQuizInMemory(asg);
         } catch {}
+      }
+    }
+
+    // 4. Synchronize manual class days to relational attendance sessions when possible
+    if (Array.isArray(cleanState.classDays) && cleanState.classDays.length > 0) {
+      try {
+        const manualDays = cleanState.classDays.filter((d: any) => d && (d.isManual || (typeof d.id === 'string' && d.id.startsWith('day_'))));
+        for (const md of manualDays) {
+          const sessionDate = md.date || (md.name ? (md.name.match(/\d{4}-\d{2}-\d{2}/) ? md.name.match(/\d{4}-\d{2}-\d{2}/)![0] : new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0]);
+          await attendanceService.resolveOrCreateSession(sessionDate, md.name || md.id);
+        }
+      } catch (attErr) {
+        logger.warn("Non-blocking attendance session sync notice:", attErr);
       }
     }
 

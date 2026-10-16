@@ -212,33 +212,65 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
       return;
     }
 
-    if (resource.fileDataUrl && resource.fileDataUrl.startsWith('data:')) {
-      const bytes = dataUrlToUint8Array(resource.fileDataUrl);
-      if (bytes) {
-        setPdfBytes(bytes);
-        setPdfCurrentPage(1);
-        setIsRenderingPdf(true);
-        setPdfError(null);
-
-        extractTextFromPdfData(bytes)
-          .then((info) => {
-            if (info.numPages > 0) {
-              setPdfNumPages(info.numPages);
-              setPdfExtractedText(info.extractedText);
-            }
-          })
-          .catch((err) => {
-            console.warn('PDF text parse note:', err);
-          })
-          .finally(() => {
-            setIsRenderingPdf(false);
-          });
-      } else {
-        setPdfError('Unable to decode PDF data.');
-      }
-    } else {
+    const rawUrl = resource.fileDataUrl || resource.downloadUrl || resource.url || '';
+    if (!rawUrl) {
       setPdfBytes(null);
+      return;
     }
+
+    let isMounted = true;
+    setIsRenderingPdf(true);
+    setPdfError(null);
+
+    async function loadBytes() {
+      try {
+        let bytes: Uint8Array | null = null;
+        if (rawUrl.startsWith('data:')) {
+          bytes = dataUrlToUint8Array(rawUrl);
+        } else if (rawUrl.startsWith('blob:') || rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+          try {
+            const resp = await fetch(rawUrl).catch(() => fetch(rawUrl, { mode: 'no-cors' }));
+            if (resp) {
+              const buffer = await resp.arrayBuffer();
+              bytes = new Uint8Array(buffer);
+            }
+          } catch (e) {
+            console.warn('Failed to fetch PDF URL in modal:', e);
+          }
+        }
+
+        if (!isMounted) return;
+
+        if (bytes && bytes.length > 0) {
+          setPdfBytes(bytes);
+          setPdfCurrentPage(1);
+          extractTextFromPdfData(bytes)
+            .then((info) => {
+              if (isMounted && info.numPages > 0) {
+                setPdfNumPages(info.numPages);
+                setPdfExtractedText(info.extractedText);
+              }
+            })
+            .catch(() => {});
+        } else {
+          setPdfError('Unable to load PDF document bytes.');
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setPdfError('Failed to load PDF: ' + (err?.message || 'Unknown error'));
+        }
+      } finally {
+        if (isMounted) {
+          setIsRenderingPdf(false);
+        }
+      }
+    }
+
+    loadBytes();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, resource, isPdf]);
 
   // Render PDF Page to HTML5 Canvas
