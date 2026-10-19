@@ -305,6 +305,49 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({
         </div>
       </section>
 
+      {/* ─── 0. Attendance Engagement Streak & Heatmap ─── */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                Semester Attendance Streak & Session Heatmap
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Weekly attendance participation record across 14 semester sessions
+              </p>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-mono font-black border border-emerald-300 dark:border-emerald-800">
+            🔥 5-Week Streak Active
+          </span>
+        </div>
+
+        <div className="grid grid-cols-7 sm:grid-cols-14 gap-1.5 pt-2">
+          {Array.from({ length: 14 }).map((_, idx) => {
+            const isAttended = idx < attendedCount;
+            const weekNum = idx + 1;
+            return (
+              <div
+                key={`heatmap-session-${idx}`}
+                className={`h-9 rounded-lg flex flex-col items-center justify-center text-[10px] font-mono font-bold transition-all border ${
+                  isAttended 
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-2xs' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700/80'
+                }`}
+                title={`Session ${weekNum}: ${isAttended ? 'Present ✓' : 'Absent / Pending'}`}
+              >
+                <span>W{weekNum}</span>
+                <span className="text-[9px]">{isAttended ? '✓' : '•'}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ─── 1. Primary Metrics Row (Attendance %, Current Grades, Outstanding Balance, Upcoming Assignments) ─── */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Student Core Metrics">
         

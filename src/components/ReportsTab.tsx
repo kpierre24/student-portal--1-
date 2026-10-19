@@ -96,9 +96,9 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
     });
 
     return [
-      { name: 'Satisfactory (>=75%)', value: satisfactory, fill: '#10b981' },
-      { name: 'At-Risk (51%-74%)', value: atRisk, fill: '#f59e0b' },
-      { name: 'Critical (<=50%)', value: critical, fill: '#ef4444' }
+      { name: 'Satisfactory (>=75%)', value: satisfactory, fill: '#10b981' }, // emerald-500
+      { name: 'At-Risk (51%-74%)', value: atRisk, fill: '#f59e0b' },    // amber-500
+      { name: 'Critical (<=50%)', value: critical, fill: '#ef4444' }     // rose-500
     ];
   }, [students]);
 
@@ -115,9 +115,9 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
     });
 
     return [
-      { name: 'Honor Roll / Distinction', value: honorRoll },
-      { name: 'Satisfactory Standing', value: satisfactory },
-      { name: 'Academic Warning', value: atRisk }
+      { name: 'Honor Roll / Distinction', value: honorRoll, fill: '#8b5cf6' }, // violet-500
+      { name: 'Satisfactory Standing', value: satisfactory, fill: '#3b82f6' },  // blue-500
+      { name: 'Academic Warning', value: atRisk, fill: '#f43f5e' }             // rose-500
     ];
   }, [students]);
 
@@ -131,12 +131,12 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
     });
 
     return [
-      { name: 'Tuition Collected', value: collected, color: '#10b981' },
-      { name: 'Arrears / Outstanding', value: outstanding, color: '#f59e0b' }
+      { name: 'Tuition Collected', value: collected, fill: '#10b981' }, // emerald-500
+      { name: 'Arrears / Outstanding', value: outstanding, fill: '#f59e0b' } // amber-500
     ];
   }, [payments]);
 
-  const ACADEMIC_COLORS = ['#3b82f6', '#10b981', '#ef4444'];
+  const ACADEMIC_COLORS = ['#8b5cf6', '#3b82f6', '#f43f5e'];
 
   // Universal Filter States
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('all');
@@ -841,7 +841,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
         {showVisuals && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Chart 1: Attendance Distribution */}
-            <div className="p-4 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 rounded-xl space-y-3">
+            <div className="p-4 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 rounded-xl space-y-3 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">
                   Attendance Threshold Split
@@ -905,7 +905,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
             </div>
 
             {/* Chart 3: Financial Statement progress */}
-            <div className="p-4 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 rounded-xl space-y-3">
+            <div className="p-4 bg-white dark:bg-slate-950 border border-slate-150 dark:border-slate-800/80 rounded-xl space-y-3 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">
                   Tuition Collection & Balance
@@ -927,7 +927,7 @@ export const ReportsTab: React.FC<ReportsTabProps> = ({
                       label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
                     >
                       {financialChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.fill || entry.color} />
                       ))}
                     </Pie>
                     <ChartTooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
