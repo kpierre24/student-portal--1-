@@ -17,7 +17,7 @@ import {
 import { TabType, AppNotification, Cohort } from '../types';
 import { AppUser } from '../lib/userAuth';
 import { AppHeader } from '../components/AppHeader';
-import { PortalFooter, MobileBottomNav, MobileMoreMenuDrawer, BackToTopButton, AppSidebar } from '../components/layout';
+import { PortalFooter, MobileBottomNav, MobileMoreMenuDrawer, BackToTopButton, AppSidebar, LiveClassroomMiniDock } from '../components/layout';
 import { FloatingQuizBanner } from '../features/assignments';
 import { OfflineSyncDrawer } from '../components/OfflineSyncDrawer';
 import { PWAUpdateNotification } from '../components/PWAUpdateNotification';
@@ -576,6 +576,12 @@ create policy "Allow public update" on app_states for update using (true) with c
           remainingSeconds={remainingSeconds}
           onExtend={extendSession}
           onLogout={onLogout}
+        />
+
+        {/* Floating Live Classroom Mini-Dock */}
+        <LiveClassroomMiniDock 
+          activeErpTab={activeErpTab} 
+          onNavigate={handleNavigate} 
         />
 
         {/* Floating Back-To-Top Button */}

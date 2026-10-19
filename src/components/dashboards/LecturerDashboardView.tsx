@@ -31,6 +31,7 @@ import {
 } from '../../types';
 import { AppUser } from '../../lib/userAuth';
 import { RoleActionHero, ActionTask } from './RoleActionHero';
+import { MyTodayLiveGateway } from './MyTodayLiveGateway';
 
 interface LecturerDashboardViewProps {
   appUser: AppUser | null;
@@ -251,6 +252,15 @@ export const LecturerDashboardView: React.FC<LecturerDashboardViewProps> = ({
         userName={lecturerName}
         tasks={lecturerTasks}
         onNavigate={onNavigate}
+      />
+
+      {/* ─── Live Classroom Gateway & Lecturer Pulse ─── */}
+      <MyTodayLiveGateway
+        appUser={appUser}
+        onNavigate={onNavigate}
+        totalStudentsCount={students.length}
+        atRiskStudentsCount={students.filter(s => s.rate < 75).length}
+        classDays={classDays}
       />
 
       {/* ─── Top Banner ─── */}

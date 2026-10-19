@@ -34,6 +34,7 @@ import {
 import { AppUser } from '../../lib/userAuth';
 import { isDemoAssignment } from '../../data/guards';
 import { RoleActionHero, ActionTask } from './RoleActionHero';
+import { MyTodayLiveGateway } from './MyTodayLiveGateway';
 
 interface StudentDashboardViewProps {
   appUser: AppUser | null;
@@ -246,6 +247,18 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({
         userName={studentName}
         tasks={studentTasks}
         onNavigate={onNavigate}
+      />
+
+      {/* ─── Live Classroom Gateway & My Today Pulse ─── */}
+      <MyTodayLiveGateway
+        appUser={appUser}
+        onNavigate={onNavigate}
+        studentData={studentData}
+        attendanceRate={attendanceRate}
+        atRiskThreshold={atRiskThreshold}
+        safeAbsenceMargin={safeAbsenceMargin}
+        pendingAssignmentsCount={upcomingAssignments.length}
+        outstandingBalance={outstandingBalance}
       />
 
       {/* ─── Top Banner ─── */}

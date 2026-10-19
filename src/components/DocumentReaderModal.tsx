@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { LibraryResource } from '../types';
 import { parseVideoMediaUrl } from '../lib/mediaUtils';
-import { dataUrlToUint8Array, extractTextFromPdfData, renderPdfPageToCanvas } from '../lib/pdfUtils';
+import { dataUrlToUint8Array, extractTextFromPdfData, renderPdfPageToCanvas, getIframePdfUrl } from '../lib/pdfUtils';
 import { ScriptureHoverPopover } from './ScriptureHoverPopover';
 import { parseTextWithScriptures } from '../utils/scriptureDetector';
 import { createNoteFromLibraryExcerpt } from '../utils/notesStorage';
@@ -64,7 +64,7 @@ interface DocumentReaderModalProps {
 
 type ReaderTheme = 'light' | 'sepia' | 'dark' | 'contrast';
 type FontSize = 'sm' | 'base' | 'lg' | 'xl' | '2xl';
-type PdfViewMode = 'canvas' | 'text';
+type PdfViewMode = 'canvas' | 'text' | 'embed';
 
 const FONT_SIZE_MAP: Record<FontSize, { label: string; tailwind: string; px: string }> = {
   sm: { label: 'Small', tailwind: 'text-sm leading-relaxed', px: '14px' },
@@ -198,7 +198,8 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
   const isPdf = formatUpper === 'PDF' || fileNameLower.endsWith('.pdf') || (resource?.mimeType || '').includes('pdf') || (resource?.fileDataUrl || '').startsWith('data:application/pdf');
   const isDocx = formatUpper === 'DOCX' || formatUpper === 'DOC' || fileNameLower.endsWith('.docx') || fileNameLower.endsWith('.doc') || (resource?.mimeType || '').includes('wordprocessingml') || (resource?.mimeType || '').includes('msword');
   const isAudio = formatUpper === 'AUDIO' || formatUpper === 'MP3' || formatUpper === 'WAV' || formatUpper === 'M4A' || fileNameLower.endsWith('.mp3') || fileNameLower.endsWith('.wav') || fileNameLower.endsWith('.m4a') || resource?.category === 'Lecture Audio';
-  const videoDetails = parseVideoMediaUrl(resource?.downloadUrl || resource?.fileDataUrl || '');
+  const rawUrl = resource?.fileDataUrl || resource?.downloadUrl || (resource as any)?.url || '';
+  const videoDetails = parseVideoMediaUrl(rawUrl);
   const isVideo = formatUpper === 'VIDEO' || resource?.category === 'Livestream Recording' || videoDetails.isDrive || videoDetails.isYouTube || videoDetails.isVimeo || videoDetails.isLoom;
 
   // Load PDF Data and Extract Text
@@ -212,7 +213,6 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
       return;
     }
 
-    const rawUrl = resource.fileDataUrl || resource.downloadUrl || (resource as any).url || '';
     if (!rawUrl) {
       setPdfBytes(null);
       return;
@@ -230,12 +230,12 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
         } else if (rawUrl.startsWith('blob:') || rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
           try {
             const resp = await fetch(rawUrl).catch(() => fetch(rawUrl, { mode: 'no-cors' }));
-            if (resp) {
+            if (resp && resp.ok) {
               const buffer = await resp.arrayBuffer();
               bytes = new Uint8Array(buffer);
             }
           } catch (e) {
-            console.warn('Failed to fetch PDF URL in modal:', e);
+            console.warn('Failed to fetch PDF URL directly in modal:', e);
           }
         }
 
@@ -244,6 +244,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
         if (bytes && bytes.length > 0) {
           setPdfBytes(bytes);
           setPdfCurrentPage(1);
+          setPdfViewMode('canvas');
           extractTextFromPdfData(bytes)
             .then((info) => {
               if (isMounted && info.numPages > 0) {
@@ -253,11 +254,13 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
             })
             .catch(() => {});
         } else {
-          setPdfError('Unable to load PDF document bytes.');
+          // Switch to embedded document preview for remote/Google Drive PDFs without CORS access
+          setPdfViewMode('embed');
         }
       } catch (err: any) {
         if (isMounted) {
-          setPdfError('Failed to load PDF: ' + (err?.message || 'Unknown error'));
+          console.warn('PDF load warning in modal, defaulting to embed:', err);
+          setPdfViewMode('embed');
         }
       } finally {
         if (isMounted) {
@@ -271,7 +274,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, resource, isPdf]);
+  }, [isOpen, resource, isPdf, rawUrl]);
 
   // Render PDF Page to HTML5 Canvas
   useEffect(() => {
@@ -672,7 +675,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
             {/* PDF View Mode & Page Selector Controls */}
             {isPdf ? (
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Mode toggle: Page Canvas vs Clean Text */}
+                {/* Mode toggle: Page Canvas vs Embedded Document vs Clean Text */}
                 <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
                   <button
                     onClick={() => setPdfViewMode('canvas')}
@@ -683,6 +686,16 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" /> Page View
+                  </button>
+                  <button
+                    onClick={() => setPdfViewMode('embed')}
+                    className={`px-2.5 py-1 text-xs font-bold rounded flex items-center gap-1 transition-all cursor-pointer ${
+                      pdfViewMode === 'embed'
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> Embedded Document
                   </button>
                   <button
                     onClick={() => setPdfViewMode('text')}
@@ -935,6 +948,42 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                           >
                             <FileType className="w-3.5 h-3.5" /> Read Full Text
                           </button>
+                          <button
+                            onClick={(e) => onDownload(resource, e)}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Download PDF
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : pdfViewMode === 'embed' ? (
+                    <div className="flex flex-col items-center space-y-4 w-full">
+                      <div className="w-full h-[650px] sm:h-[800px] rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-white">
+                        <iframe
+                          src={getIframePdfUrl(rawUrl, pdfCurrentPage)}
+                          className="w-full h-full border-0"
+                          allow="fullscreen"
+                          title={resource.title || 'PDF Document'}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between w-full p-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                        <span className="text-slate-500 font-medium">Embedded PDF viewer active</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setPdfViewMode('text')}
+                            className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 cursor-pointer"
+                          >
+                            <FileType className="w-3.5 h-3.5" /> Clean Text
+                          </button>
+                          {pdfBytes && (
+                            <button
+                              onClick={() => setPdfViewMode('canvas')}
+                              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Layers className="w-3.5 h-3.5" /> Canvas View
+                            </button>
+                          )}
                           <button
                             onClick={(e) => onDownload(resource, e)}
                             className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg flex items-center gap-1 cursor-pointer shadow-xs"

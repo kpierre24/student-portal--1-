@@ -126,4 +126,22 @@ export async function renderPdfPageToCanvas(
   }
 }
 
+/**
+ * Resolves an iframe-safe preview URL for remote or drive PDFs
+ */
+export function getIframePdfUrl(url: string, page: number = 1): string {
+  if (!url) return '';
+  // Check for Google Drive ID
+  const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?id=)|docs\.google\.com\/.*\/d\/)([a-zA-Z0-9_-]{10,})/i);
+  if (driveMatch && driveMatch[1]) {
+    return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // Remote URLs embedded via Google Docs Viewer to bypass cross-origin/CSP frame blocks
+    return `https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(url)}`;
+  }
+  return `${url}#page=${page}`;
+}
+
 export { exportElementToPDF } from './pdfExporter';
+

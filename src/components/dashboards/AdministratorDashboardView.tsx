@@ -47,6 +47,7 @@ import {
 import { AppUser } from '../../lib/userAuth';
 import { EnrollmentInquiry } from '../EnrollmentInquiryModal';
 import { RoleActionHero, ActionTask } from './RoleActionHero';
+import { MyTodayLiveGateway } from './MyTodayLiveGateway';
 import { AdministrativeDataOperationsCard } from '../../features/admin/AdministrativeDataOperationsCard';
 
 interface AdministratorDashboardViewProps {
@@ -283,6 +284,15 @@ export const AdministratorDashboardView: React.FC<AdministratorDashboardViewProp
         userName={adminName}
         tasks={adminTasks}
         onNavigate={onNavigate}
+      />
+
+      {/* ─── Live Classroom Gateway & Operations Pulse ─── */}
+      <MyTodayLiveGateway
+        appUser={appUser}
+        onNavigate={onNavigate}
+        totalStudentsCount={totalStudents}
+        atRiskStudentsCount={atRiskStudents.length}
+        classDays={classDays}
       />
 
       {/* ─── Top Banner & Command Summary ─── */}

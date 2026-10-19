@@ -28,10 +28,24 @@ import {
   renderPdfPageToCanvas,
   PdfDocumentInfo
 } from '../../../../lib/pdfUtils';
+import { extractGoogleDriveId } from '../../utils/urlNormalizer';
 
 interface SearchMatch {
   page: number;
   snippet: string;
+}
+
+function getIframePdfUrl(url: string, page: number): string {
+  if (!url) return '';
+  const gdriveId = extractGoogleDriveId(url);
+  if (gdriveId) {
+    return `https://drive.google.com/file/d/${gdriveId}/preview`;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // If it's a remote URL, embed via Google Docs Viewer to bypass cross-origin/CSP frame blocks
+    return `https://docs.google.com/viewer?embedded=true&url=${encodeURIComponent(url)}`;
+  }
+  return `${url}#page=${page}`;
 }
 
 export const PdfViewer: React.FC<ViewerBaseProps> = ({
@@ -738,8 +752,9 @@ export const PdfViewer: React.FC<ViewerBaseProps> = ({
           /* Fallback to browser embedded PDF viewer */
           <div className="w-full h-full flex flex-col items-center">
             <iframe
-              src={`${rawUrl}#page=${currentPage}`}
+              src={getIframePdfUrl(rawUrl, currentPage)}
               className="w-full h-full border-0 rounded-xl bg-white shadow-2xl"
+              allow="fullscreen"
               title={resource.title || 'PDF Viewer'}
             />
           </div>
