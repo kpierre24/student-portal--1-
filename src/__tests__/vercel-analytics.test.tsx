@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 import fs from 'fs';
 import path from 'path';
 
@@ -17,9 +17,8 @@ describe('Vercel Analytics Integration', () => {
     expect(indexHtml).toContain('https://*.vercel-insights.com');
   });
 
-  it('configures CSP and @vercel/analytics alias in vite.config.ts', () => {
+  it('configures CSP for Vercel Analytics domains in vite.config.ts', () => {
     const viteConfig = fs.readFileSync(path.resolve(__dirname, '../../vite.config.ts'), 'utf-8');
-    expect(viteConfig).toContain('@vercel/analytics/next');
     expect(viteConfig).toContain('https://va.vercel-scripts.com');
     expect(viteConfig).toContain('https://*.vercel-insights.com');
   });
