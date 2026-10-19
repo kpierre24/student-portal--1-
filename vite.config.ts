@@ -79,7 +79,6 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(rootDir, 'src'),
-        '@vercel/analytics/next': path.resolve(rootDir, 'node_modules/@vercel/analytics/dist/react/index.mjs'),
         'react': path.resolve(rootDir, 'node_modules/react'),
         'react-dom': path.resolve(rootDir, 'node_modules/react-dom'),
       },
