@@ -79,6 +79,7 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         '@': path.resolve(rootDir, 'src'),
+        '@vercel/analytics/next': path.resolve(rootDir, 'node_modules/@vercel/analytics/dist/react/index.mjs'),
         'react': path.resolve(rootDir, 'node_modules/react'),
         'react-dom': path.resolve(rootDir, 'node_modules/react-dom'),
       },
@@ -92,7 +93,7 @@ export default defineConfig(() => {
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com https://*.vercel-insights.com https://va.vercel-scripts.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
       },
     },
     preview: {
@@ -101,7 +102,7 @@ export default defineConfig(() => {
         'X-Content-Type-Options': 'nosniff',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'X-XSS-Protection': '1; mode=block',
-        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com; connect-src 'self' https://*.supabase.co https://*.googleapis.com https://*.firebaseio.com https://*.google.com https://*.vercel-insights.com https://va.vercel-scripts.com wss: ws:; media-src 'self' blob: data: https://*.youtube.com https://*.vimeo.com; frame-src 'self' https://*.youtube.com https://*.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self';",
       },
     },
     build: {

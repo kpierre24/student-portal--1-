@@ -212,7 +212,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
       return;
     }
 
-    const rawUrl = resource.fileDataUrl || resource.downloadUrl || resource.url || '';
+    const rawUrl = resource.fileDataUrl || resource.downloadUrl || (resource as any).url || '';
     if (!rawUrl) {
       setPdfBytes(null);
       return;
