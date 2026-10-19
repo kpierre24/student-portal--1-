@@ -628,53 +628,70 @@ ${resource.fullContent || resource.content || 'Full lesson document content load
           </div>
         </div>
 
-        {/* Phase 15: Filter Bar Quick Type Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-4 border-t border-slate-800/80 mt-4">
-          <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5" /> Format:
-          </span>
+        {/* Phase 15: Filter Bar Quick Type Tabs with Scroll Snapping & Centering */}
+        <div className="pt-4 border-t border-slate-800/80 mt-4 relative">
+          <div 
+            ref={(el) => {
+              if (el) {
+                const activeBtn = el.querySelector('[data-active-category="true"]');
+                if (activeBtn) {
+                  activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                }
+              }
+            }}
+            className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 pt-1 scrollbar-none snap-x snap-mandatory scroll-smooth text-xs"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1 shrink-0 snap-start">
+              <Filter className="w-3.5 h-3.5" /> Format:
+            </span>
 
-          {[
-            { id: 'all', label: 'All Formats', count: categoryCounts.all },
-            { id: 'documents', label: '📄 Documents', count: categoryCounts.documents },
-            { id: 'videos', label: '▶ Videos', count: categoryCounts.videos },
-            { id: 'audio', label: '🎧 Audio', count: categoryCounts.audio },
-            { id: 'websites', label: '🔗 Websites', count: categoryCounts.websites },
-            { id: 'scriptures', label: '📖 Scripture', count: categoryCounts.scriptures },
-            { id: 'images', label: '🖼 Images', count: categoryCounts.images }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSelectedType(tab.id as any)}
-              className={`min-h-[38px] px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer active:opacity-80 ${
-                selectedType === tab.id
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-950/30'
-                  : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  selectedType === tab.id
-                    ? 'bg-slate-950/30 text-slate-950 font-bold'
-                    : 'bg-slate-900 text-slate-400'
-                }`}
+            {[
+              { id: 'all', label: 'All Formats', count: categoryCounts.all },
+              { id: 'documents', label: '📄 Documents', count: categoryCounts.documents },
+              { id: 'videos', label: '▶ Videos', count: categoryCounts.videos },
+              { id: 'audio', label: '🎧 Audio', count: categoryCounts.audio },
+              { id: 'websites', label: '🔗 Websites', count: categoryCounts.websites },
+              { id: 'scriptures', label: '📖 Scripture', count: categoryCounts.scriptures },
+              { id: 'images', label: '🖼 Images', count: categoryCounts.images }
+            ].map((tab) => {
+              const isActive = selectedType === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  data-active-category={isActive ? 'true' : 'false'}
+                  onClick={() => setSelectedType(tab.id as any)}
+                  className={`min-h-[34px] px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer active:opacity-80 shrink-0 snap-center ${
+                    isActive
+                      ? 'bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-950/30'
+                      : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isActive
+                        ? 'bg-slate-950/30 text-slate-950 font-bold'
+                        : 'bg-slate-900 text-slate-400'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="ml-auto min-h-[36px] flex items-center text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer shrink-0 snap-end pl-2"
               >
-                {tab.count}
-              </span>
-            </button>
-          ))}
-
-          {hasActiveFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto min-h-[36px] flex items-center text-xs text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
-            >
-              Reset Filters ({activeFilterCount})
-            </button>
-          )}
+                Reset Filters ({activeFilterCount})
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
